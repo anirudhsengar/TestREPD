@@ -1,0 +1,66 @@
+
+name: Bug Prediction
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install tensorflow==2.12.0 pandas
+        sudo apt-get update
+        sudo apt-get install -y cloc
+
+    - name: Get changed files
+      id: changed-files
+      uses: tj-actions/changed-files@v35
+      with:
+        files: |
+          **/*.c
+          **/*.cpp
+          **/*.cxx
+          **/*.cc
+          **/*.h
+          **/*.hpp
+          **/*.hxx
+
+    - name: Run feature extraction
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        chmod +x ./ExtractTraditionalFeatures.sh
+        ./ExtractTraditionalFeatures.sh ${{ steps.changed-files.outputs.all_changed_files }}
+
+    - name: Run prediction
+      if: steps.changed-files.outputs.any_changed == 'true'
+      id: prediction
+      run: |
+        output=$(python predict.py metrics_output_*/summary_metrics.csv)
+        echo "::set-output name=comment::$output"
+
+    - name: Comment on PR
+      if: steps.changed-files.outputs.any_changed == 'true'
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const output = `${{ steps.prediction.outputs.comment }}`;
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
