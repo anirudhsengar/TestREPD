@@ -70,6 +70,8 @@ class REPD:
         return example_errors,nd_p,d_p
         
     def __get_data_probability__(self,data,distribution,distribution_parameteres):
+        if distribution_parameteres is None:
+            raise ValueError("distribution_parameteres is None. Check input data and model initialization.")
         parameter_count = len(distribution_parameteres)
         probability = None
         if parameter_count==1:
