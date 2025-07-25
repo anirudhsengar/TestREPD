@@ -24,5 +24,5 @@ int main() {
     t->start();
     // Bug: Memory leak, t is not deleted
     // delete t;
-    return 0;
+
 }
