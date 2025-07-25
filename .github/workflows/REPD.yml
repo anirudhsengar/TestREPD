@@ -39,7 +39,6 @@ jobs:
           **/*.h
           **/*.hpp
           **/*.hxx
-        include_deleted_files: false
 
     - name: Run feature extraction
       if: steps.changed-files.outputs.any_changed == 'true'
