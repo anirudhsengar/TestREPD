@@ -15,5 +15,4 @@ public:
 int main() {
     GC gc;
     gc.collect();
-    return 0;
 }
