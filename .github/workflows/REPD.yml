@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v3
@@ -37,12 +39,15 @@ jobs:
           **/*.h
           **/*.hpp
           **/*.hxx
+        include_deleted_files: false
 
     - name: Run feature extraction
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         chmod +x ./ExtractTraditionalFeatures.sh
-        ./ExtractTraditionalFeatures.sh ${{ steps.changed-files.outputs.all_changed_files }}
+        for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          ./ExtractTraditionalFeatures.sh "$file"
+        done
 
     - name: Run prediction
       if: steps.changed-files.outputs.any_changed == 'true'
