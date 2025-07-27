@@ -1,2 +1,0 @@
-model_checkpoint_path: "REPD_Model.ckpt"
-all_model_checkpoint_paths: "REPD_Model.ckpt"
