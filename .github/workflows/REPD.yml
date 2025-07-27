@@ -40,13 +40,25 @@ jobs:
           **/*.hpp
           **/*.hxx
 
-    - name: Run feature extraction
+    - name: Extract features BEFORE changes (base)
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
+        git checkout ${{ github.event.pull_request.base.sha }}
         chmod +x ./ExtractTraditionalFeatures.sh
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           ./ExtractTraditionalFeatures.sh "$file"
         done
+        mv metrics_output_* metrics_output_base
+
+    - name: Extract features AFTER changes (head)
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        git checkout ${{ github.event.pull_request.head.sha }}
+        chmod +x ./ExtractTraditionalFeatures.sh
+        for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          ./ExtractTraditionalFeatures.sh "$file"
+        done
+        mv metrics_output_* metrics_output_head
 
     - name: Run prediction
       if: steps.changed-files.outputs.any_changed == 'true'
