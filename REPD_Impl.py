@@ -27,7 +27,7 @@ class REPD:
         #Dim reduction model initialization
         self.dim_reduction_model.fit(X_nd)
         
-        #Calcculate reconstruction errors for train defective and train non-defective
+        #Calculate reconstruction errors for train defective and train non-defective
         nd_errors = self.calculate_reconstruction_error(X_nd)
         d_errors = self.calculate_reconstruction_error(X_d)
         
@@ -49,7 +49,7 @@ class REPD:
         p_nd = self.get_non_defect_probability(test_errors)
         p_d = self.get_defect_probability(test_errors)
         
-        return np.asarray([0 if p_nd[i] >= p_d[i]  else 1 for i in range(len(X))])
+        return np.asarray([(p_nd, p_d) for i in range(len(X))]) # P of Non defective, P of Defective
     
     def get_non_defect_probability(self,errors):
         return self.__get_data_probability__(errors,self.dnd,self.dnd_pa)
@@ -70,8 +70,6 @@ class REPD:
         return example_errors,nd_p,d_p
         
     def __get_data_probability__(self,data,distribution,distribution_parameteres):
-        if distribution_parameteres is None:
-            raise ValueError("distribution_parameteres is None. Check input data and model initialization.")
         parameter_count = len(distribution_parameteres)
         probability = None
         if parameter_count==1:
