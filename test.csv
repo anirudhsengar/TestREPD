@@ -1,3 +1,0 @@
-﻿File,loc,v(g),ev(g),iv(g),n,v,l,d,i,e,b,t,lOComment,lOBlank,LOCodeAndCOmment,uniq_Op,Uniq_Opnd,total_Op,total_Opnd,branchCount
-debugtools/DDR_VM/binary_operation_investigation/j9_types.hpp,11,1,1,1,34,125.81,0.06,17,7.4,2138.85,0.06,118.83,22,4,33,1,12,11,23,1
-debugtools/DDR_VM/binary_operation_investigation/test_suite.cpp,6411,1,1,1,42771,258524.78,0,21385.5,12.09,5528681701,3,307148983.4,41,277,6452,16,50,23571,19200,1
