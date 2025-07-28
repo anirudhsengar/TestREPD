@@ -32,11 +32,59 @@ jobs:
 
     - name: Get changed files
       id: changed-files
-      uses: tj-actions/changed-files@v35
+      run: |
+        files=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -E '\.(c|cpp|cxx|cc|h|hpp|hxx)
+
+    - name: Extract features BEFORE changes (base)
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        git checkout ${{ github.event.pull_request.base.sha }}
+        chmod +x ./ExtractTraditionalFeatures.sh
+        for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          ./ExtractTraditionalFeatures.sh "$file"
+        done
+        generated_dir=$(ls -d metrics_output_* | head -n 1)
+        mv "$generated_dir" metrics_output_base
+
+    - name: Extract features AFTER changes (head)
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        git checkout ${{ github.event.pull_request.head.sha }}
+        chmod +x ./ExtractTraditionalFeatures.sh
+        for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          ./ExtractTraditionalFeatures.sh "$file"
+        done
+        generated_dir=$(ls -d metrics_output_* | head -n 1)
+        mv "$generated_dir" metrics_output_head
+
+    - name: Run prediction
+      if: steps.changed-files.outputs.any_changed == 'true'
+      id: prediction
+      run: |
+        output_base=$(python predict.py metrics_output_base/summary_metrics.csv)
+        output_head=$(python predict.py metrics_output_head/summary_metrics.csv)
+        echo "::set-output name=comment::Prediction BEFORE PR changes:%0A$output_base%0A%0APrediction AFTER PR changes:%0A$output_head"
+
+    - name: Comment on PR
+      if: steps.changed-files.outputs.any_changed == 'true'
+      uses: actions/github-script@v6
       with:
-        files: '**/*.c **/*.cpp **/*.cxx **/*.cc **/*.h **/*.hpp **/*.hxx'
-        base_sha: ${{ github.event.pull_request.base.sha }}
-        sha: ${{ github.event.pull_request.head.sha }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const output = `${{ steps.prediction.outputs.comment }}`;
+          github.rest.issues.createComment({
+            issue_number: context.payload.pull_request.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
+ | xargs)
+        echo "all_changed_files=$files" >> $GITHUB_OUTPUT
+        if [ -n "$files" ]; then
+          echo "any_changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "any_changed=false" >> $GITHUB_OUTPUT
+        fi
 
     - name: Extract features BEFORE changes (base)
       if: steps.changed-files.outputs.any_changed == 'true'
