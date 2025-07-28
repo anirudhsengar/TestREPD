@@ -33,7 +33,13 @@ jobs:
     - name: Get changed files
       id: changed-files
       run: |
-        files=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -E '\.(c|cpp|cxx|cc|h|hpp|hxx)
+        files=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -E "\.(c|cpp|cxx|cc|h|hpp|hxx)\$" | xargs)
+        echo "all_changed_files=$files" >> $GITHUB_OUTPUT
+        if [ -n "$files" ]; then
+          echo "any_changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "any_changed=false" >> $GITHUB_OUTPUT
+        fi
 
     - name: Extract features BEFORE changes (base)
       if: steps.changed-files.outputs.any_changed == 'true'
