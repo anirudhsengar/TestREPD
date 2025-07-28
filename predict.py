@@ -23,6 +23,8 @@ def predict(features_file):
     X_train = df_train.drop(columns=["File", "defects"]).values
     y_train = df_train['defects'].values
 
+    print(X_test)
+
     # Initialize the model with the same architecture as during training
     # The parameters are: layers=[input_dim, hidden1, hidden2, ...], learning_rate, epochs, batch_size
     # The input dimension is taken from the number of columns in the feature set
