@@ -1340,7 +1340,6 @@ class TR_VectorAPIExpansion : public TR::Optimization
    */
    static TR::Node *transformRORtoROL(TR_VectorAPIExpansion *opt, TR::Node *node, TR::DataType elementType, TR::VectorLength vectorLength, vapiOpCodeType opCodeType);
 
-
    /** \brief
    *   Sets element type and vector length for the source vector of "convert" intrinsic
    *
