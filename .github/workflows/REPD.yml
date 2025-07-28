@@ -1,10 +1,12 @@
-
 name: Bug Prediction
 
 on:
   pull_request_target:
     branches:
       - main
+
+permissions:
+  pull-requests: write
 
 jobs:
   predict:
@@ -74,7 +76,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v6
       with:
-        github-token: ${{ secrets.BOT_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           const output = `${{ steps.prediction.outputs.comment }}`;
           github.rest.issues.createComment({
