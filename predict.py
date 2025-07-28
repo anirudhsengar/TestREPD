@@ -23,6 +23,8 @@ def predict(features_file):
     X_train = df_train.drop(columns=["File", "defects"]).values
     y_train = df_train['defects'].values
 
+    print(X_test)
+
     # Initialize the model with the same architecture as during training
     # The parameters are: layers=[input_dim, hidden1, hidden2, ...], learning_rate, epochs, batch_size
     # The input dimension is taken from the number of columns in the feature set
@@ -38,7 +40,7 @@ def predict(features_file):
     print("-------------------")
     for i, file_name in enumerate(file_names):
         # PDF is the Probability Density Function
-        print(f"File: {file_name} -> PDF(Defective) = {predictions[i][0]}, PDF(Non-defective) = {predictions[i][1]}")
+        print(f"File: {file_name} -> PDF(Defective) = {predictions[i][0] * 100000}, PDF(Non-defective) = {predictions[i][1] * 100000}")
 
     # Close the TensorFlow session
     autoencoder.close()

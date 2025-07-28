@@ -48,7 +48,8 @@ jobs:
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           ./ExtractTraditionalFeatures.sh "$file"
         done
-        mv metrics_output_* metrics_output_base
+        generated_dir=$(ls -d metrics_output_* | head -n 1)
+        mv "$generated_dir" metrics_output_base
 
     - name: Extract features AFTER changes (head)
       if: steps.changed-files.outputs.any_changed == 'true'
@@ -58,14 +59,16 @@ jobs:
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           ./ExtractTraditionalFeatures.sh "$file"
         done
-        mv metrics_output_* metrics_output_head
+        generated_dir=$(ls -d metrics_output_* | head -n 1)
+        mv "$generated_dir" metrics_output_head
 
     - name: Run prediction
       if: steps.changed-files.outputs.any_changed == 'true'
       id: prediction
       run: |
-        output=$(python predict.py metrics_output_*/summary_metrics.csv)
-        echo "::set-output name=comment::$output"
+        output_base=$(python predict.py metrics_output_base/summary_metrics.csv)
+        output_head=$(python predict.py metrics_output_head/summary_metrics.csv)
+        echo "::set-output name=comment::Prediction BEFORE PR changes:%0A$output_base%0A%0APrediction AFTER PR changes:%0A$output_head"
 
     - name: Comment on PR
       if: steps.changed-files.outputs.any_changed == 'true'
