@@ -643,7 +643,7 @@ generate_summary() {
     
     print_info "Generating summary report..."
     
-    echo "File,loc,v(g),ev(g),iv(g),n,v,l,d,i,e,b,t,lOComment,lOBlank,LOCodeAndCOmment,uniq_Op,Uniq_Opnd,total_Op,total_Opnd,branchCount" > "$summary_output"
+    echo "File,loc,v(g),ev(g),iv(g),n,v,l,d,i,e,b,t,lOComment,lOBlank,LOCodeAndComment,uniq_Op,Uniq_Opnd,total_Op,total_Opnd,branchCount" > "$summary_output"
     
     awk '
     /^File:/ { file = substr($0, 7) }
@@ -670,9 +670,9 @@ generate_summary() {
     /^----------------------------------------/ {
         if (file) {
             printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-                file, loc, vg, evg, ivg, n, v, l, d, i, e, b, t, lOComment, lOBlank, lOCodeAndCOmment, uniq_Op, uniq_Opnd, total_Op, total_Opnd, branchCount
+                file, loc, vg, evg, ivg, n, v, l, d, i, e, b, t, lOComment, lOBlank, lOCodeAndComment, uniq_Op, uniq_Opnd, total_Op, total_Opnd, branchCount
         }
-        file = loc = vg = evg = ivg = n = v = l = d = i = e = b = t = lOComment = lOBlank = lOCodeAndCOmment = uniq_Op = uniq_Opnd = total_Op = total_Opnd = branchCount = ""
+        file = loc = vg = evg = ivg = n = v = l = d = i = e = b = t = lOComment = lOBlank = lOCodeAndComment = uniq_Op = uniq_Opnd = total_Op = total_Opnd = branchCount = ""
     }
     ' "$detailed_output" >> "$summary_output"
 }
