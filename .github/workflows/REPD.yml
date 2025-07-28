@@ -74,7 +74,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v6
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.BOT_TOKEN }}
         script: |
           const output = `${{ steps.prediction.outputs.comment }}`;
           github.rest.issues.createComment({
