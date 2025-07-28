@@ -5,6 +5,9 @@ on:
   pull_request:
     branches:
       - main
+  pull_request_target:
+    branches:
+      - main
 
 jobs:
   predict:
@@ -78,7 +81,7 @@ jobs:
         script: |
           const output = `${{ steps.prediction.outputs.comment }}`;
           github.rest.issues.createComment({
-            issue_number: context.issue.number,
+            issue_number: context.payload.pull_request.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
             body: output
