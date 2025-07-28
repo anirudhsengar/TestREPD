@@ -48,7 +48,8 @@ jobs:
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           ./ExtractTraditionalFeatures.sh "$file"
         done
-        mv metrics_output_* metrics_output_base
+        generated_dir=$(ls -d metrics_output_* | head -n 1)
+        mv "$generated_dir" metrics_output_base
 
     - name: Extract features AFTER changes (head)
       if: steps.changed-files.outputs.any_changed == 'true'
@@ -58,7 +59,8 @@ jobs:
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           ./ExtractTraditionalFeatures.sh "$file"
         done
-        mv metrics_output_* metrics_output_head
+        generated_dir=$(ls -d metrics_output_* | head -n 1)
+        mv "$generated_dir" metrics_output_head
 
     - name: Run prediction
       if: steps.changed-files.outputs.any_changed == 'true'
