@@ -55,8 +55,8 @@ def format_results(file_names, risk_data):
         
         output.append(f"**{file_name}**")
         output.append(f"- Risk Level: {risk_level}")
-        output.append(f"- Risk Score: {risk_score:.1f}/100")
-        output.append(f"- Model Confidence: {confidence:.1%}")
+        output.append(f"- Risk Score: {float(risk_score):.1f}/100")
+        output.append(f"- Model Confidence: {float(confidence):.1%}")
         output.append(f"- Recommendation: {recommendation}\n")
     
     return "\n".join(output)
