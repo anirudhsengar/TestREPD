@@ -85,6 +85,8 @@ jobs:
     - name: Comment on PR
       if: steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v6
+      env:
+        COMMENT_BODY: "${{ steps.prediction.outputs.comment }}"
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
@@ -92,5 +94,5 @@ jobs:
             issue_number: context.payload.pull_request.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: "${{ steps.prediction.outputs.comment }}"
+            body: process.env.COMMENT_BODY
           })
