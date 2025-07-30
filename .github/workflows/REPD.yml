@@ -69,8 +69,7 @@ jobs:
       run: |
         output_base=$(python predict.py metrics_output_base/summary_metrics.csv)
         output_head=$(python predict.py metrics_output_head/summary_metrics.csv)
-        echo "::set-output name=comment::Prediction BEFORE PR changes:%0A$output_base%0A%0APrediction AFTER PR changes:%0A$output_head"
-
+        echo "::set-output name=comment::Prediction BEFORE PR changes:%0A\`\`\`%0A$output_base%0A\`\`\`%0A%0APrediction AFTER PR changes:%0A\`\`\`%0A$output_head%0A\`\`\`"
     - name: Comment on PR
       if: steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v6
