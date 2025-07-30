@@ -76,10 +76,9 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const output = ${{ steps.prediction.outputs.comment }};
           github.rest.issues.createComment({
             issue_number: context.payload.pull_request.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: output
+            body: `${{ steps.prediction.outputs.comment }}`
           })
