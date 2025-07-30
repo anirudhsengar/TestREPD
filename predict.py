@@ -35,13 +35,11 @@ def predict(features_file):
 
     factor = pow(10, 4)
     # Print the results
-    print("```")
     print("Prediction Results:")
     print("-------------------")
     for i, file_name in enumerate(file_names):
         # PDF is the Probability Density Function
         print(f"File: {file_name} -> P(Defective | Reconstruction Error) = {predictions[i][0] * factor}, P(Non-defective | Reconstruction Error) = {predictions[i][1] * factor}")
-    print("```")
     # Close the TensorFlow session
     autoencoder.close()
 
