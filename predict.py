@@ -34,7 +34,7 @@ def convert_to_risk_scores(predictions):
     
 def format_results(file_names, risk_data):
     """Format results with interpretable risk scores"""
-    output = ["## 🎯 Code Quality Risk Assessment\n"]
+    output = ["🎯 Code Quality Risk Assessment\n"]
     
     for i, file_name in enumerate(file_names):
         risk_score = risk_data[i]['risk_score']
@@ -67,17 +67,10 @@ def predict(features_file):
 
     # Make predictions (PDF values)
     pdf_predictions = classifier.predict(X_test)
-
-    # Print the results
-    print("Prediction Results:")
-    print("-------------------")
-    for i, file_name in enumerate(file_names):
-        # PDF is the Probability Density Function
-        print(f"File: {file_name}\n P(Defective | Reconstruction Error) = {pdf_predictions[i][0]}\n P(Non-defective | Reconstruction Error) = {pdf_predictions[i][1]}")
     
     # Convert to interpretable risk scores
     risk_data = convert_to_risk_scores(pdf_predictions)
-    
+
     # Format and print results
     print(format_results(file_names, risk_data))
 
