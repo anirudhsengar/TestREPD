@@ -26,7 +26,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install tensorflow==2.12.0 pandas
+        pip install tensorflow==2.12.0 pandas joblib
         sudo apt-get update
         sudo apt-get install -y cloc
 
@@ -39,6 +39,16 @@ jobs:
           echo "any_changed=true" >> $GITHUB_OUTPUT
         else
           echo "any_changed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup trained model
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        if [ ! -d "trained_model" ]; then
+          echo "No trained model found. Training new model..."
+          python train_model.py
+        else
+          echo "Using existing trained model"
         fi
 
     - name: Extract features BEFORE changes (base)
@@ -67,21 +77,26 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       id: prediction
       run: |
+        echo "Running predictions..."
         output_base=$(python predict.py metrics_output_base/summary_metrics.csv)
         output_head=$(python predict.py metrics_output_head/summary_metrics.csv)
         {
           echo "comment<<EOF"
-          echo "Defective probability BEFORE PR changes:"
-          echo '```'
-          echo "$output_base"
-          echo '```'
+          echo "## 📊 Bug Risk Analysis"
           echo ""
-          echo "Defective probability AFTER PR changes:"
-          echo '```'
+          echo "### 🔄 BEFORE PR Changes:"
+          echo "$output_base"
+          echo ""
+          echo "### ✅ AFTER PR Changes:"
           echo "$output_head"
-          echo '```'
+          echo ""
+          echo "### 💡 Interpretation:"
+          echo "- **Higher risk scores** indicate increased likelihood of bugs"
+          echo "- **Lower risk scores** suggest improved code quality"
+          echo "- Compare BEFORE vs AFTER to see the impact of your changes"
           echo "EOF"
         } >> $GITHUB_OUTPUT
+
     - name: Comment on PR
       if: steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v6
