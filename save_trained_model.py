@@ -5,11 +5,26 @@ import warnings
 import tensorflow.compat.v1 as tf
 import joblib
 import os
-import scipy.stats as st
 
 # Suppress warnings
 tf.disable_v2_behavior()
 warnings.simplefilter("ignore")
+
+def extract_distribution_info(dist):
+    """Extract distribution name and parameters from scipy distribution"""
+    if dist is None:
+        return None, None
+    
+    # Get the distribution name
+    dist_name = dist.dist.name
+    
+    # Get the parameters (args and kwds)
+    params = dist.args
+    if hasattr(dist, 'kwds') and dist.kwds:
+        # Include keyword arguments if they exist
+        params = params + tuple(dist.kwds.values())
+    
+    return dist_name, params
 
 def train_and_save_model(training_data_path="metrics.csv", model_save_dir="trained_model"):
     """Train the REPD model and save it for later use"""
@@ -39,11 +54,17 @@ def train_and_save_model(training_data_path="metrics.csv", model_save_dir="train
     autoencoder_save_path = os.path.join(model_save_dir, "autoencoder")
     autoencoder.save(autoencoder_save_path)
     
-    # Save classifier parameters (distributions and their parameters)
+    # Extract distribution information (to avoid pickling issues)
+    dnd_name, dnd_params = extract_distribution_info(classifier.dnd)
+    dd_name, dd_params = extract_distribution_info(classifier.dd)
+    
+    # Save classifier parameters (distribution names and parameters, not objects)
     classifier_params = {
-        'dnd': classifier.dnd,
+        'dnd_name': dnd_name,
+        'dnd_params': dnd_params,
         'dnd_pa': classifier.dnd_pa,
-        'dd': classifier.dd,
+        'dd_name': dd_name,
+        'dd_params': dd_params,
         'dd_pa': classifier.dd_pa
     }
     

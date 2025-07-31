@@ -7,6 +7,7 @@ import numpy as np
 import joblib
 import sys
 import os
+import scipy.stats as st
 
 # Suppress warnings
 tf.disable_v2_behavior()
@@ -46,6 +47,14 @@ def format_results(file_names, risk_data):
     
     return "\n".join(output)
 
+def recreate_distribution(dist_name, params):
+    """Recreate a scipy distribution from saved name and parameters"""
+    if dist_name is None:
+        return None
+    
+    dist_class = getattr(st, dist_name)
+    return dist_class(*params)
+
 def load_trained_model(model_dir="trained_model"):
     """Load the pre-trained model"""
     if not os.path.exists(model_dir):
@@ -82,10 +91,17 @@ def load_trained_model(model_dir="trained_model"):
     # Recreate REPD classifier
     classifier = REPD(autoencoder)
     
-    # Restore the fitted distributions and parameters
-    classifier.dnd = classifier_params['dnd']
+    # Recreate distributions from saved names and parameters
+    classifier.dnd = recreate_distribution(
+        classifier_params['dnd_name'], 
+        classifier_params['dnd_params']
+    )
     classifier.dnd_pa = classifier_params['dnd_pa']
-    classifier.dd = classifier_params['dd']
+    
+    classifier.dd = recreate_distribution(
+        classifier_params['dd_name'], 
+        classifier_params['dd_params']
+    )
     classifier.dd_pa = classifier_params['dd_pa']
     
     return classifier
@@ -100,6 +116,8 @@ def predict(features_file, model_dir="trained_model"):
     df_test = pd.read_csv(features_file)
     file_names = df_test["File"].values
     X_test = df_test.drop(columns=["File"]).values
+        
+    print("Making predictions...")
         
     # Make predictions (PDF values)
     pdf_predictions = classifier.predict(X_test)
