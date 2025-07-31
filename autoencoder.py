@@ -143,17 +143,6 @@ class AutoEncoder:
         for i, gi in enumerate(self.g):
             print("g"+str(i)+": ", gi.shape)
         print()
-    
-    def save(self, path):
-        """Save the autoencoder model"""
-        saver = tf.train.Saver()
-        saver.save(self.sess, path)
-
-    def load(self, path):
-        """Load the autoencoder model"""
-        saver = tf.train.Saver()
-        saver.restore(self.sess, path) 
-
         
 def load_autoencoder(model_path):
 
