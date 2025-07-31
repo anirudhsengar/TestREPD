@@ -4,7 +4,7 @@ from autoencoder import AutoEncoder
 import warnings
 import tensorflow.compat.v1 as tf
 import numpy as np
-import pickle
+import json
 import sys
 import os
 import scipy.stats as st
@@ -67,21 +67,21 @@ def load_trained_model(model_dir="trained_model"):
     if not os.path.exists(model_dir):
         raise FileNotFoundError(f"Trained model not found at {model_dir}. Please ensure the model is trained and saved.")
     
-    # Load metadata
-    metadata_path = os.path.join(model_dir, "metadata.pkl")
+    # Load metadata from JSON
+    metadata_path = os.path.join(model_dir, "metadata.json")
     if not os.path.exists(metadata_path):
         raise FileNotFoundError(f"Model metadata not found at {metadata_path}")
     
-    with open(metadata_path, 'rb') as f:
-        metadata = pickle.load(f)
+    with open(metadata_path, 'r') as f:
+        metadata = json.load(f)
     
-    # Load REPD classifier parameters
-    classifier_params_path = os.path.join(model_dir, "classifier_params.pkl")
+    # Load REPD classifier parameters from JSON
+    classifier_params_path = os.path.join(model_dir, "classifier_params.json")
     if not os.path.exists(classifier_params_path):
         raise FileNotFoundError(f"Classifier parameters not found at {classifier_params_path}")
     
-    with open(classifier_params_path, 'rb') as f:
-        classifier_params = pickle.load(f)
+    with open(classifier_params_path, 'r') as f:
+        classifier_params = json.load(f)
     
     # Recreate the autoencoder with saved architecture
     autoencoder = AutoEncoder(
