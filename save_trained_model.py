@@ -6,6 +6,8 @@ import tensorflow.compat.v1 as tf
 import json
 import os
 import numpy as np
+import urllib.request
+from urllib.parse import urlparse
 
 # Suppress warnings
 tf.disable_v2_behavior()
@@ -53,8 +55,42 @@ def convert_to_json_serializable(obj):
         # Try to convert to string as fallback
         return str(obj)
 
-def train_and_save_model(training_data_path="metrics.csv", model_save_dir="trained_model"):
-    """Train the REPD model and save it for later use"""
+def is_url(string):
+    """Check if the string is a valid URL"""
+    try:
+        result = urlparse(string)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
+
+def load_training_data(data_source):
+    """Load training data from either a local file or URL"""
+    if is_url(data_source):
+        print(f"Downloading training data from URL: {data_source}")
+        try:
+            # Download the file
+            temp_filename = "temp_training_data.csv"
+            urllib.request.urlretrieve(data_source, temp_filename)
+            df = pd.read_csv(temp_filename)
+            # Clean up temporary file
+            os.remove(temp_filename)
+            print(f"Successfully downloaded and loaded data from {data_source}")
+            return df
+        except Exception as e:
+            raise Exception(f"Failed to download data from {data_source}: {e}")
+    else:
+        print(f"Loading training data from local file: {data_source}")
+        if not os.path.exists(data_source):
+            raise FileNotFoundError(f"Local file not found: {data_source}")
+        return pd.read_csv(data_source)
+
+def train_and_save_model(training_data_path="https://github.com/adoptium/aqa-triage-data/GlitchWitcher/Traditional%20Dataset/OpenJ9_Traditional_Dataset.csv", model_save_dir="trained_model"):
+    """Train the REPD model and save it for later use
+    
+    Args:
+        training_data_path: Local file path or URL to the training CSV file
+        model_save_dir: Directory to save the trained model
+    """
     
     # Remove existing model directory to ensure clean save
     if os.path.exists(model_save_dir):
@@ -64,13 +100,26 @@ def train_and_save_model(training_data_path="metrics.csv", model_save_dir="train
     # Create model directory
     os.makedirs(model_save_dir)
     
-    # Load training data
+    # Load training data (from file or URL)
     print("Loading training data...")
-    df_train = pd.read_csv(training_data_path)
+    df_train = load_training_data(training_data_path)
+    
+    # Validate required columns
+    required_columns = ["File", "defects"]
+    missing_columns = [col for col in required_columns if col not in df_train.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns in training data: {missing_columns}")
+    
+    print(f"Training data shape: {df_train.shape}")
+    print(f"Columns: {list(df_train.columns)}")
     
     # Prepare training data
     X_train = df_train.drop(columns=["File", "defects"]).values
     y_train = df_train['defects'].values
+    
+    print(f"Features shape: {X_train.shape}")
+    print(f"Labels shape: {y_train.shape}")
+    print(f"Defective samples: {sum(y_train)} / {len(y_train)} ({100*sum(y_train)/len(y_train):.1f}%)")
     
     print("Training model...")
     
@@ -120,7 +169,10 @@ def train_and_save_model(training_data_path="metrics.csv", model_save_dir="train
         'architecture': [20, 17, 7],
         'learning_rate': 0.001,
         'epochs': 500,
-        'batch_size': 128
+        'batch_size': 128,
+        'training_data_source': training_data_path,
+        'training_samples': int(len(y_train)),
+        'defective_samples': int(sum(y_train))
     }
     
     with open(os.path.join(model_save_dir, "metadata.json"), 'w') as f:
@@ -133,4 +185,13 @@ def train_and_save_model(training_data_path="metrics.csv", model_save_dir="train
     autoencoder.close()
 
 if __name__ == "__main__":
-    train_and_save_model()
+    import sys
+    
+    # Allow command line argument for data source
+    if len(sys.argv) > 1:
+        data_source = sys.argv[1]
+    else:
+        data_source = "https://github.com/adoptium/aqa-triage-data/GlitchWitcher/Traditional%20Dataset/OpenJ9_Traditional_Dataset.csv"
+    
+    print(f"Using data source: {data_source}")
+    train_and_save_model(data_source)
