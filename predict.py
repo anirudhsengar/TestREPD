@@ -32,17 +32,6 @@ def convert_to_risk_scores(predictions):
         })
     
     return risk_scores
-
-def get_risk_level(risk_score):
-    """Categorize risk based on score (0-100)"""
-    if risk_score < 30:
-        return "🟢 LOW", "Code appears healthy"
-    elif risk_score < 60:
-        return "🟡 MEDIUM", "Consider additional review"
-    elif risk_score < 80:
-        return "🟠 HIGH", "Recommend thorough testing"
-    else:
-        return "🔴 CRITICAL", "Requires immediate attention"
     
 def format_results(file_names, risk_data):
     """Format results with interpretable risk scores"""
@@ -51,13 +40,10 @@ def format_results(file_names, risk_data):
     for i, file_name in enumerate(file_names):
         risk_score = risk_data[i]['risk_score']
         confidence = risk_data[i]['confidence']
-        risk_level, recommendation = get_risk_level(risk_score)
         
-        output.append(f"**{file_name}**")
-        output.append(f"- Risk Level: {risk_level}")
+        output.append(f"File: {file_name}")
         output.append(f"- Risk Score: {float(risk_score):.1f}/100")
         output.append(f"- Model Confidence: {float(confidence):.1%}")
-        output.append(f"- Recommendation: {recommendation}\n")
     
     return "\n".join(output)
 
