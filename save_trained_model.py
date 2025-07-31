@@ -5,6 +5,7 @@ import warnings
 import tensorflow.compat.v1 as tf
 import json
 import os
+import numpy as np
 
 # Suppress warnings
 tf.disable_v2_behavior()
@@ -26,6 +27,22 @@ def extract_distribution_info(dist):
         params = []
     
     return dist_name, params
+
+def convert_to_json_serializable(obj):
+    """Convert numpy/complex objects to JSON serializable format"""
+    if obj is None:
+        return None
+    elif isinstance(obj, (list, tuple)):
+        return [convert_to_json_serializable(item) for item in obj]
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.integer, np.floating)):
+        return float(obj)
+    elif isinstance(obj, (int, float, str, bool)):
+        return obj
+    else:
+        # Try to convert to string as fallback
+        return str(obj)
 
 def train_and_save_model(training_data_path="metrics.csv", model_save_dir="trained_model"):
     """Train the REPD model and save it for later use"""
@@ -67,14 +84,20 @@ def train_and_save_model(training_data_path="metrics.csv", model_save_dir="train
     print(f"Non-defective distribution: {dnd_name} with params: {dnd_params}")
     print(f"Defective distribution: {dd_name} with params: {dd_params}")
     
+    # Debug: Print the actual types and values
+    print(f"dnd_pa type: {type(getattr(classifier, 'dnd_pa', None))}")
+    print(f"dnd_pa value: {getattr(classifier, 'dnd_pa', None)}")
+    print(f"dd_pa type: {type(getattr(classifier, 'dd_pa', None))}")
+    print(f"dd_pa value: {getattr(classifier, 'dd_pa', None)}")
+    
     # Save classifier parameters as JSON (no pickle issues)
     classifier_params = {
         'dnd_name': dnd_name,
         'dnd_params': dnd_params,
-        'dnd_pa': float(getattr(classifier, 'dnd_pa', 0.0)) if getattr(classifier, 'dnd_pa', None) is not None else None,
+        'dnd_pa': convert_to_json_serializable(getattr(classifier, 'dnd_pa', None)),
         'dd_name': dd_name,
         'dd_params': dd_params,
-        'dd_pa': float(getattr(classifier, 'dd_pa', 0.0)) if getattr(classifier, 'dd_pa', None) is not None else None
+        'dd_pa': convert_to_json_serializable(getattr(classifier, 'dd_pa', None))
     }
     
     # Save as JSON
