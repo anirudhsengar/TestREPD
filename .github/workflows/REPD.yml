@@ -41,6 +41,16 @@ jobs:
           echo "any_changed=false" >> $GITHUB_OUTPUT
         fi
 
+    - name: Setup trained model
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        if [ ! -d "trained_model" ]; then
+          echo "No trained model found. Training new model..."
+          python train_model.py
+        else
+          echo "Using existing trained model"
+        fi
+
     - name: Extract features BEFORE changes (base)
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |

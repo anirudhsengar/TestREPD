@@ -1,6 +1,7 @@
 import numpy as np
 from stat_util import get_best_distribution
 import scipy.stats as st
+import os
 
 class REPD:
     
@@ -83,3 +84,20 @@ class REPD:
         elif parameter_count==5:
             probability = distribution.pdf(data,distribution_parameteres[0],distribution_parameteres[1],distribution_parameteres[2],distribution_parameteres[3],distribution_parameteres[4])
         return probability
+    
+    def save(self, directory):
+        """Save the REPD model"""
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        
+        # Save autoencoder
+        self.autoencoder.save(os.path.join(directory, "autoencoder"))
+        
+        # Save any other trained parameters
+        # (depending on your implementation)
+    
+    def load(self, directory):
+        """Load the REPD model"""
+        # Load autoencoder
+        self.autoencoder.load(os.path.join(directory, "autoencoder"))
+        
