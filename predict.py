@@ -4,7 +4,7 @@ from autoencoder import AutoEncoder
 import warnings
 import tensorflow.compat.v1 as tf
 import numpy as np
-import joblib
+import pickle
 import sys
 import os
 import scipy.stats as st
@@ -52,8 +52,15 @@ def recreate_distribution(dist_name, params):
     if dist_name is None:
         return None
     
-    dist_class = getattr(st, dist_name)
-    return dist_class(*params)
+    try:
+        dist_class = getattr(st, dist_name)
+        if params:
+            return dist_class(*params)
+        else:
+            return dist_class()
+    except Exception as e:
+        print(f"Warning: Could not recreate distribution {dist_name}: {e}")
+        return None
 
 def load_trained_model(model_dir="trained_model"):
     """Load the pre-trained model"""
@@ -66,7 +73,7 @@ def load_trained_model(model_dir="trained_model"):
         raise FileNotFoundError(f"Model metadata not found at {metadata_path}")
     
     with open(metadata_path, 'rb') as f:
-        metadata = joblib.load(f)
+        metadata = pickle.load(f)
     
     # Load REPD classifier parameters
     classifier_params_path = os.path.join(model_dir, "classifier_params.pkl")
@@ -74,7 +81,7 @@ def load_trained_model(model_dir="trained_model"):
         raise FileNotFoundError(f"Classifier parameters not found at {classifier_params_path}")
     
     with open(classifier_params_path, 'rb') as f:
-        classifier_params = joblib.load(f)
+        classifier_params = pickle.load(f)
     
     # Recreate the autoencoder with saved architecture
     autoencoder = AutoEncoder(
@@ -93,16 +100,16 @@ def load_trained_model(model_dir="trained_model"):
     
     # Recreate distributions from saved names and parameters
     classifier.dnd = recreate_distribution(
-        classifier_params['dnd_name'], 
-        classifier_params['dnd_params']
+        classifier_params.get('dnd_name'), 
+        classifier_params.get('dnd_params')
     )
-    classifier.dnd_pa = classifier_params['dnd_pa']
+    classifier.dnd_pa = classifier_params.get('dnd_pa')
     
     classifier.dd = recreate_distribution(
-        classifier_params['dd_name'], 
-        classifier_params['dd_params']
+        classifier_params.get('dd_name'), 
+        classifier_params.get('dd_params')
     )
-    classifier.dd_pa = classifier_params['dd_pa']
+    classifier.dd_pa = classifier_params.get('dd_pa')
     
     return classifier
 
