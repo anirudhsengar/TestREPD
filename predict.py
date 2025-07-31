@@ -38,7 +38,6 @@ def format_results(file_names, risk_data):
     
     for i, file_name in enumerate(file_names):
         risk_score = risk_data[i]['risk_score']
-        confidence = risk_data[i]['confidence']
         
         output.append(f"File: {file_name}")
         output.append(f"- Risk Score: {float(risk_score):.1f}/100")
@@ -66,21 +65,15 @@ def predict(features_file):
     classifier = REPD(autoencoder)
     classifier.fit(X_train, y_train)
 
-    # # Make predictions on the new data
-    # predictions = classifier.predict(X_test)
-
-    # factor = pow(10, 4)
-    # # Print the results
-    # print("Prediction Results:")
-    # print("-------------------")
-    # for i, file_name in enumerate(file_names):
-    #     # PDF is the Probability Density Function
-    #     print(f"File: {file_name}\n P(Defective | Reconstruction Error) = {predictions[i][0] * factor}\n P(Non-defective | Reconstruction Error) = {predictions[i][1] * factor}")
-    # # Close the TensorFlow session
-    # autoencoder.close()
-
     # Make predictions (PDF values)
     pdf_predictions = classifier.predict(X_test)
+
+    # Print the results
+    print("Prediction Results:")
+    print("-------------------")
+    for i, file_name in enumerate(file_names):
+        # PDF is the Probability Density Function
+        print(f"File: {file_name}\n P(Defective | Reconstruction Error) = {pdf_predictions[i][0]}\n P(Non-defective | Reconstruction Error) = {pdf_predictions[i][1]}")
     
     # Convert to interpretable risk scores
     risk_data = convert_to_risk_scores(pdf_predictions)
