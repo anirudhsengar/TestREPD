@@ -47,23 +47,18 @@ def format_results(file_names, risk_data):
     
     return "\n".join(output)
 
-def recreate_distribution(dist_name, params):
-    """Recreate a scipy distribution from saved name and parameters"""
+def get_distribution_class(dist_name):
+    """Get the distribution class (not frozen) from scipy.stats"""
     if dist_name is None:
         print("Warning: Distribution name is None")
         return None
     
     try:
         dist_class = getattr(st, dist_name)
-        if params and len(params) > 0:
-            print(f"Recreating {dist_name} with params: {params}")
-            # Create a frozen distribution with the saved parameters
-            return dist_class(*params)
-        else:
-            print(f"Warning: No parameters for {dist_name}, using default")
-            return dist_class()
+        print(f"Retrieved distribution class: {dist_name}")
+        return dist_class
     except Exception as e:
-        print(f"Error recreating distribution {dist_name}: {e}")
+        print(f"Error getting distribution class {dist_name}: {e}")
         return None
 
 def load_trained_model(model_dir="trained_model"):
@@ -104,29 +99,26 @@ def load_trained_model(model_dir="trained_model"):
     # Recreate REPD classifier
     classifier = REPD(autoencoder)
     
-    # Recreate distributions from saved names and parameters
-    print("Recreating distributions...")
-    classifier.dnd = recreate_distribution(
-        classifier_params.get('dnd_name'), 
-        classifier_params.get('dnd_params')
-    )
-    # The dnd_pa is not needed anymore since the distribution is already frozen with parameters
+    # Set distribution CLASSES (not frozen distributions) and their parameters separately
+    print("Setting up distributions...")
+    
+    # Non-defective distribution
+    classifier.dnd = get_distribution_class(classifier_params.get('dnd_name'))
     classifier.dnd_pa = tuple(classifier_params.get('dnd_params', []))
     
-    classifier.dd = recreate_distribution(
-        classifier_params.get('dd_name'), 
-        classifier_params.get('dd_params')
-    )
-    # The dd_pa is not needed anymore since the distribution is already frozen with parameters  
+    # Defective distribution  
+    classifier.dd = get_distribution_class(classifier_params.get('dd_name'))
     classifier.dd_pa = tuple(classifier_params.get('dd_params', []))
     
     # Check if distributions were created successfully
     if classifier.dnd is None:
-        raise ValueError("Failed to recreate non-defective distribution")
+        raise ValueError("Failed to get non-defective distribution class")
     if classifier.dd is None:
-        raise ValueError("Failed to recreate defective distribution")
+        raise ValueError("Failed to get defective distribution class")
     
-    print(f"Successfully loaded model with distributions: {type(classifier.dnd)}, {type(classifier.dd)}")
+    print(f"Successfully loaded model:")
+    print(f"  Non-defective: {classifier.dnd} with params {classifier.dnd_pa}")
+    print(f"  Defective: {classifier.dd} with params {classifier.dd_pa}")
     
     return classifier
 
