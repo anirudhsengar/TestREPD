@@ -9,10 +9,10 @@ class REPD:
         self.dim_reduction_model = dim_reduction_model
         
         self.dnd = None #Distribution non defect
-        self.dnd_pa = None#Distribution non defect parameters
+        self.dnd_pa = None #Distribution non defect parameters
 
-        self.dd = None#Distribution defect
-        self.dd_pa = None#Distribution defect parameters
+        self.dd = None #Distribution defect
+        self.dd_pa = None #Distribution defect parameters
 
         self.error_func = error_func
         

@@ -3,9 +3,9 @@ from REPD_Impl import REPD
 from autoencoder import AutoEncoder
 import warnings
 import tensorflow.compat.v1 as tf
-import os
 import joblib
-import numpy as np
+import os
+import scipy.stats as st
 
 # Suppress warnings
 tf.disable_v2_behavior()
@@ -19,6 +19,7 @@ def train_and_save_model(training_data_path="metrics.csv", model_save_dir="train
         os.makedirs(model_save_dir)
     
     # Load training data
+    print("Loading training data...")
     df_train = pd.read_csv(training_data_path)
     
     # Prepare training data
@@ -34,14 +35,16 @@ def train_and_save_model(training_data_path="metrics.csv", model_save_dir="train
     
     print("Saving model...")
     
-    # Save the autoencoder weights and architecture
+    # Save the autoencoder weights
     autoencoder_save_path = os.path.join(model_save_dir, "autoencoder")
     autoencoder.save(autoencoder_save_path)
     
-    # Save classifier parameters (non-TensorFlow parts)
+    # Save classifier parameters (distributions and their parameters)
     classifier_params = {
-        'trained': True,
-        # Add any other non-TensorFlow parameters your REPD class has
+        'dnd': classifier.dnd,
+        'dnd_pa': classifier.dnd_pa,
+        'dd': classifier.dd,
+        'dd_pa': classifier.dd_pa
     }
     
     with open(os.path.join(model_save_dir, "classifier_params.pkl"), 'wb') as f:
