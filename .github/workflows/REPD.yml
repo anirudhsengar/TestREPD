@@ -71,12 +71,12 @@ jobs:
         output_head=$(python predict.py metrics_output_head/summary_metrics.csv)
         {
           echo "comment<<EOF"
-          echo "Prediction BEFORE PR changes:"
+          echo "Defective probability BEFORE PR changes:"
           echo '```'
           echo "$output_base"
           echo '```'
           echo ""
-          echo "Prediction AFTER PR changes:"
+          echo "Defective probability AFTER PR changes:"
           echo '```'
           echo "$output_head"
           echo '```'
