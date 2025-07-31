@@ -63,6 +63,16 @@ jobs:
         generated_dir=$(ls -d metrics_output_* | head -n 1)
         mv "$generated_dir" metrics_output_head
 
+    - name: Verify or create trained model
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        if [ ! -d "trained_model" ] || [ ! -f "trained_model/metadata.json" ]; then
+          echo "Training new model..."
+          python save_trained_model.py
+        else
+          echo "Trained model found ✅"
+        fi
+
     - name: Run prediction
       if: steps.changed-files.outputs.any_changed == 'true'
       id: prediction
