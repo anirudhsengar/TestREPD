@@ -11,22 +11,31 @@ import numpy as np
 tf.disable_v2_behavior()
 warnings.simplefilter("ignore")
 
-def extract_distribution_info(dist):
+def extract_distribution_info(dist, params_tuple):
     """Extract distribution name and parameters from scipy distribution"""
     if dist is None:
-        return None, None
+        return None, []
     
-    # Handle frozen scipy distributions
-    if hasattr(dist, 'dist'):
-        # This is a frozen distribution
-        dist_name = dist.dist.name
-        params = list(dist.args)  # Convert to list for JSON serialization
-    else:
-        # This might be the distribution class itself
-        dist_name = dist.name if hasattr(dist, 'name') else str(dist)
-        params = []
-    
-    return dist_name, params
+    try:
+        # Get distribution name
+        if hasattr(dist, 'name'):
+            dist_name = dist.name
+        else:
+            print(f"Unknown distribution type: {type(dist)}")
+            return None, []
+        
+        # Use the fitted parameters from the params_tuple
+        if params_tuple is not None:
+            params = [float(p) for p in params_tuple]  # Convert numpy types to float
+        else:
+            params = []
+        
+        print(f"Extracted distribution: {dist_name} with {len(params)} parameters: {params}")
+        return dist_name, params
+        
+    except Exception as e:
+        print(f"Error extracting distribution info: {e}")
+        return None, []
 
 def convert_to_json_serializable(obj):
     """Convert numpy/complex objects to JSON serializable format"""
@@ -76,29 +85,30 @@ def train_and_save_model(training_data_path="metrics.csv", model_save_dir="train
     autoencoder_save_path = os.path.join(model_save_dir, "autoencoder")
     autoencoder.save(autoencoder_save_path)
     
-    # Extract distribution information (to avoid pickling issues)
-    print("Extracting distribution info...")
-    dnd_name, dnd_params = extract_distribution_info(classifier.dnd)
-    dd_name, dd_params = extract_distribution_info(classifier.dd)
+    # Debug the distributions before extraction
+    print("\nDebugging distributions:")
+    print(f"classifier.dnd: {type(classifier.dnd)} = {classifier.dnd}")
+    print(f"classifier.dd: {type(classifier.dd)} = {classifier.dd}")
     
-    print(f"Non-defective distribution: {dnd_name} with params: {dnd_params}")
-    print(f"Defective distribution: {dd_name} with params: {dd_params}")
+    if hasattr(classifier, 'dnd_pa'):
+        print(f"classifier.dnd_pa: {type(classifier.dnd_pa)} = {classifier.dnd_pa}")
+    if hasattr(classifier, 'dd_pa'):
+        print(f"classifier.dd_pa: {type(classifier.dd_pa)} = {classifier.dd_pa}")
     
-    # Debug: Print the actual types and values
-    print(f"dnd_pa type: {type(getattr(classifier, 'dnd_pa', None))}")
-    print(f"dnd_pa value: {getattr(classifier, 'dnd_pa', None)}")
-    print(f"dd_pa type: {type(getattr(classifier, 'dd_pa', None))}")
-    print(f"dd_pa value: {getattr(classifier, 'dd_pa', None)}")
+    # Extract distribution information WITH their fitted parameters
+    print("\nExtracting distribution info...")
+    dnd_name, dnd_params = extract_distribution_info(classifier.dnd, getattr(classifier, 'dnd_pa', None))
+    dd_name, dd_params = extract_distribution_info(classifier.dd, getattr(classifier, 'dd_pa', None))
     
-    # Save classifier parameters as JSON (no pickle issues)
+    # Save classifier parameters as JSON
     classifier_params = {
         'dnd_name': dnd_name,
-        'dnd_params': dnd_params,
-        'dnd_pa': convert_to_json_serializable(getattr(classifier, 'dnd_pa', None)),
+        'dnd_params': dnd_params,  # These now contain the actual fitted parameters
         'dd_name': dd_name,
-        'dd_params': dd_params,
-        'dd_pa': convert_to_json_serializable(getattr(classifier, 'dd_pa', None))
+        'dd_params': dd_params     # These now contain the actual fitted parameters
     }
+    
+    print(f"\nSaving classifier params: {classifier_params}")
     
     # Save as JSON
     with open(os.path.join(model_save_dir, "classifier_params.json"), 'w') as f:
