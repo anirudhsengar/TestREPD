@@ -4,7 +4,9 @@ from autoencoder import AutoEncoder
 import warnings
 import tensorflow.compat.v1 as tf
 import numpy as np
+import joblib
 import sys
+import os
 
 # Suppress warnings
 tf.disable_v2_behavior()
@@ -44,27 +46,61 @@ def format_results(file_names, risk_data):
     
     return "\n".join(output)
 
-def predict(features_file):
-    # Load the dataset from the provided CSV file
-    df_train = pd.read_csv("metrics.csv")
-    df_test = pd.read_csv(features_file)
-
-    # Store the file names for the final report
-    file_names = df_test["File"].values
-
-    # Prepare the data for prediction by dropping the 'File' column
-    X_test = df_test.drop(columns=["File"]).values
-
-    X_train = df_train.drop(columns=["File", "defects"]).values
-    y_train = df_train['defects'].values
-
-    # Initialize the model with the same architecture as during training
-    # The parameters are: layers=[input_dim, hidden1, hidden2, ...], learning_rate, epochs, batch_size
-    # The input dimension is taken from the number of columns in the feature set
-    autoencoder = AutoEncoder([20, 17, 7], 0.001, 500, 128)
+def load_trained_model(model_dir="trained_model"):
+    """Load the pre-trained model"""
+    if not os.path.exists(model_dir):
+        raise FileNotFoundError(f"Trained model not found at {model_dir}. Please ensure the model is trained and saved.")
+    
+    # Load metadata
+    metadata_path = os.path.join(model_dir, "metadata.pkl")
+    if not os.path.exists(metadata_path):
+        raise FileNotFoundError(f"Model metadata not found at {metadata_path}")
+    
+    with open(metadata_path, 'rb') as f:
+        metadata = joblib.load(f)
+    
+    # Load REPD classifier parameters
+    classifier_params_path = os.path.join(model_dir, "classifier_params.pkl")
+    if not os.path.exists(classifier_params_path):
+        raise FileNotFoundError(f"Classifier parameters not found at {classifier_params_path}")
+    
+    with open(classifier_params_path, 'rb') as f:
+        classifier_params = joblib.load(f)
+    
+    # Recreate the autoencoder with saved architecture
+    autoencoder = AutoEncoder(
+        metadata['architecture'], 
+        metadata['learning_rate'], 
+        metadata['epochs'], 
+        metadata['batch_size']
+    )
+    
+    # Load the saved autoencoder weights
+    autoencoder_path = os.path.join(model_dir, "autoencoder")
+    autoencoder.load(autoencoder_path)
+    
+    # Recreate REPD classifier
     classifier = REPD(autoencoder)
-    classifier.fit(X_train, y_train)
+    
+    # Restore the fitted distributions and parameters
+    classifier.dnd = classifier_params['dnd']
+    classifier.dnd_pa = classifier_params['dnd_pa']
+    classifier.dd = classifier_params['dd']
+    classifier.dd_pa = classifier_params['dd_pa']
+    
+    return classifier
 
+def predict(features_file, model_dir="trained_model"):
+    """Make predictions using pre-trained model"""
+    
+    print("Loading pre-trained model...")
+    classifier = load_trained_model(model_dir)
+    
+    # Load test data
+    df_test = pd.read_csv(features_file)
+    file_names = df_test["File"].values
+    X_test = df_test.drop(columns=["File"]).values
+        
     # Make predictions (PDF values)
     pdf_predictions = classifier.predict(X_test)
     
@@ -73,10 +109,14 @@ def predict(features_file):
 
     # Format and print results
     print(format_results(file_names, risk_data))
+    
+    # Close the session
+    classifier.dim_reduction_model.close()
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python predict.py <path_to_features.csv>")
+        print("Make sure the trained model exists in the 'trained_model' directory.")
         sys.exit(1)
     
     features_csv_path = sys.argv[1]
