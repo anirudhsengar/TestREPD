@@ -11,31 +11,40 @@ tf.disable_v2_behavior()
 warnings.simplefilter("ignore")
 
 def convert_to_risk_scores(predictions):
-    """Convert PDF values to interpretable risk scores (0-100)"""
     risk_scores = []
     
     for pred in predictions:
         defective_pdf = pred[0]
         non_defective_pdf = pred[1]
         
-        # Use ratio-based approach for better interpretation
-        total = defective_pdf + non_defective_pdf
-        if total == 0:
+        if defective_pdf == 0 and non_defective_pdf == 0:
             risk_score = 50  # Neutral when both are 0
+            confidence = 0
         else:
-            # Higher defective PDF relative to non-defective = higher risk
-            risk_score = (defective_pdf / total) * 100
+            # Apply softmax to convert PDFs to probabilities
+            values = np.array([defective_pdf, non_defective_pdf])
+            exp_values = np.exp(values - np.max(values))  # Numerical stability
+            probabilities = exp_values / np.sum(exp_values)
+            
+            prob_defective = probabilities[0]
+            prob_non_defective = probabilities[1]
+            
+            # Risk score is probability of being defective (0-100%)
+            risk_score = prob_defective * 100
+            
+            # Confidence based on how certain the prediction is
+            confidence = abs(prob_defective - prob_non_defective)
         
         risk_scores.append({
             'risk_score': risk_score,
-            'confidence': max(defective_pdf, non_defective_pdf) / total if total > 0 else 0
+            'confidence': confidence
         })
     
     return risk_scores
     
 def format_results(file_names, risk_data):
     """Format results with interpretable risk scores"""
-    output = ["## 🎯 Code Quality Risk Assessment\n"]
+    output = ["🎯 Code Quality Risk Assessment\n"]
     
     for i, file_name in enumerate(file_names):
         risk_score = risk_data[i]['risk_score']
