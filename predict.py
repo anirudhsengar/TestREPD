@@ -13,27 +13,18 @@ import scipy.stats as st
 tf.disable_v2_behavior()
 warnings.simplefilter("ignore")
 
-def convert_to_risk_scores(predictions):
-    """Convert PDF values to interpretable risk scores (0-100)"""
-    risk_scores = []
+def format_predictions(predictions):
+    """Format PDF predictions for display"""
+    results = []
     
     print(f"Debug: Original predictions shape: {predictions.shape}", file=sys.stderr)
     print(f"Debug: Original predictions content: {predictions}", file=sys.stderr)
     
     # Handle the 3D case: (n_samples, 2, 2) -> (n_samples, 2)
     if len(predictions.shape) == 3 and predictions.shape[1] == 2 and predictions.shape[2] == 2:
-        # The issue is here - we need to take different rows for different samples
-        # Instead of taking only the first row, let's take the diagonal
-        new_predictions = []
-        for i in range(predictions.shape[0]):
-            # Take the i-th row of the i-th sample's 2x2 matrix (if available)
-            if i < predictions.shape[1]:
-                new_predictions.append(predictions[i, i, :])
-            else:
-                # Fallback to first row if we run out of rows
-                new_predictions.append(predictions[i, 0, :])
-        predictions = np.array(new_predictions)
-        print(f"Debug: Reshaped 3D to 2D using diagonal: {predictions.shape}", file=sys.stderr)
+        # Take the first row of each 2x2 matrix for each sample
+        predictions = predictions[:, 0, :]
+        print(f"Debug: Reshaped 3D to 2D: {predictions.shape}", file=sys.stderr)
         print(f"Debug: Reshaped content: {predictions}", file=sys.stderr)
     
     # Handle single prediction case
@@ -44,48 +35,43 @@ def convert_to_risk_scores(predictions):
         pred = predictions[i]
         print(f"Debug: Processing prediction {i}: {pred}", file=sys.stderr)
         
-        # Now pred should be a 1D array with 2 elements
+        # Extract probabilities
         if isinstance(pred, np.ndarray) and len(pred) >= 2:
-            defective_pdf = float(pred[0])
-            non_defective_pdf = float(pred[1])
+            p_defective = float(pred[0])
+            p_non_defective = float(pred[1])
         else:
             print(f"Warning: Unexpected prediction format for {i}: {pred}", file=sys.stderr)
-            defective_pdf = 0.5
-            non_defective_pdf = 0.5
+            p_defective = 0.0
+            p_non_defective = 0.0
         
-        # Use ratio-based approach for better interpretation
-        total = defective_pdf + non_defective_pdf
-        if total == 0:
-            risk_score = 50  # Neutral when both are 0
-        else:
-            # Higher defective PDF relative to non-defective = higher risk
-            risk_score = (defective_pdf / total) * 100
-        
-        print(f"Debug: File {i} - defective: {defective_pdf}, non_defective: {non_defective_pdf}, risk: {risk_score}", file=sys.stderr)
-        
-        risk_scores.append({
-            'risk_score': risk_score
+        results.append({
+            'p_defective': p_defective,
+            'p_non_defective': p_non_defective
         })
+        
+        print(f"Debug: File {i} - P(Defective): {p_defective}, P(Non-Defective): {p_non_defective}", file=sys.stderr)
     
-    return risk_scores
+    return results
 
-def format_results(file_names, risk_data):
-    """Format results with interpretable risk scores"""
-    output = ["🎯 Code Quality Risk Assessment\n"]
+def format_results(file_names, prediction_data):
+    """Format results with probability values"""
+    output = ["🎯 Bug Prediction Analysis\n"]
     
     for i, file_name in enumerate(file_names):
-        if i < len(risk_data):
-            risk_score = risk_data[i]['risk_score']
-            # Show more decimal places for very small values
-            if risk_score < 1.0:
-                output.append(f"File: {file_name}")
-                output.append(f"Risk Score: {float(risk_score):.3f}/100")
-            else:
-                output.append(f"File: {file_name}")
-                output.append(f"Risk Score: {float(risk_score):.1f}/100")
+        if i < len(prediction_data):
+            p_defective = prediction_data[i]['p_defective']
+            p_non_defective = prediction_data[i]['p_non_defective']
+
+            factor = pow(10, 8)
+            
+            output.append(f"File: {file_name}")
+            output.append(f" P(Defective | Reconstruction Error): {p_defective * factor}")
+            output.append(f" P(Non-Defective | Reconstruction Error): {p_non_defective * factor}")
+            output.append("")
         else:
             output.append(f"File: {file_name}")
-            output.append(f"Risk Score: Error - no prediction available")
+            output.append(" Error: No prediction available")
+            output.append("")
     
     return "\n".join(output)
 
@@ -162,7 +148,7 @@ def predict(features_file, model_dir="trained_model"):
     
     # Check if CSV has data rows (more than just header)
     if len(df_test) == 0:
-        print("🎯 Code Quality Risk Assessment\n\nNo files to analyze.")
+        print("🎯 Bug Prediction Analysis\n\nNo files to analyze.")
         return
     
     file_names = df_test["File"].values
@@ -177,11 +163,11 @@ def predict(features_file, model_dir="trained_model"):
     print(f"Debug: Predictions shape: {pdf_predictions.shape}", file=sys.stderr)
     print(f"Debug: Predictions type: {type(pdf_predictions)}", file=sys.stderr)
     
-    # Convert to interpretable risk scores
-    risk_data = convert_to_risk_scores(pdf_predictions)
+    # Format predictions for display
+    prediction_data = format_predictions(pdf_predictions)
 
     # Format and print results
-    print(format_results(file_names, risk_data))
+    print(format_results(file_names, prediction_data))
     
     # Close the session
     classifier.dim_reduction_model.close()
