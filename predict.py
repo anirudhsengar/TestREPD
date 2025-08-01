@@ -65,8 +65,8 @@ def format_results(file_names, prediction_data):
             factor = pow(10, 10)
             
             output.append(f"File: {file_name}")
-            output.append(f" P(Defective | Reconstruction Error): {(p_defective * factor):.5e}")
-            output.append(f" P(Non-Defective | Reconstruction Error): {(p_non_defective * factor):.5e}")
+            output.append(f" P(Defective | Reconstruction Error): {(p_defective * factor):.5}")
+            output.append(f" P(Non-Defective | Reconstruction Error): {(p_non_defective * factor):.5}")
             output.append("")
         else:
             output.append(f"File: {file_name}")
