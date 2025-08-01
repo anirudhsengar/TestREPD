@@ -22,14 +22,45 @@ def convert_to_risk_scores(predictions):
         # Single prediction - reshape to 2D
         predictions = predictions.reshape(1, -1)
     
+    print(f"Debug: Predictions shape after reshape: {predictions.shape}", file=sys.stderr)
+    print(f"Debug: Predictions content: {predictions}", file=sys.stderr)
+    
     for i in range(predictions.shape[0]):
         pred = predictions[i]
-        defective_pdf = pred[0]
-        non_defective_pdf = pred[1]
+        print(f"Debug: Processing prediction {i}: {pred}", file=sys.stderr)
         
-        # Convert numpy values to Python floats for comparison
-        defective_pdf = float(defective_pdf)
-        non_defective_pdf = float(non_defective_pdf)
+        # Handle the case where pred might be an array of arrays
+        if isinstance(pred, np.ndarray) and len(pred.shape) > 0:
+            if len(pred) >= 2:
+                defective_pdf = pred[0]
+                non_defective_pdf = pred[1]
+            else:
+                print(f"Warning: Prediction {i} has insufficient elements: {pred}", file=sys.stderr)
+                defective_pdf = 0.5
+                non_defective_pdf = 0.5
+        else:
+            print(f"Warning: Unexpected prediction format for {i}: {pred}", file=sys.stderr)
+            defective_pdf = 0.5
+            non_defective_pdf = 0.5
+        
+        # Ensure we have scalar values
+        if isinstance(defective_pdf, np.ndarray):
+            if defective_pdf.size == 1:
+                defective_pdf = float(defective_pdf.item())
+            else:
+                print(f"Warning: defective_pdf is not scalar: {defective_pdf}", file=sys.stderr)
+                defective_pdf = float(defective_pdf.mean())
+        else:
+            defective_pdf = float(defective_pdf)
+            
+        if isinstance(non_defective_pdf, np.ndarray):
+            if non_defective_pdf.size == 1:
+                non_defective_pdf = float(non_defective_pdf.item())
+            else:
+                print(f"Warning: non_defective_pdf is not scalar: {non_defective_pdf}", file=sys.stderr)
+                non_defective_pdf = float(non_defective_pdf.mean())
+        else:
+            non_defective_pdf = float(non_defective_pdf)
         
         # Use ratio-based approach for better interpretation
         total = defective_pdf + non_defective_pdf
@@ -50,10 +81,13 @@ def format_results(file_names, risk_data):
     output = ["🎯 Code Quality Risk Assessment\n"]
     
     for i, file_name in enumerate(file_names):
-        risk_score = risk_data[i]['risk_score']
-        
-        output.append(f"File: {file_name}")
-        output.append(f"- Risk Score: {float(risk_score):.1f}/100")
+        if i < len(risk_data):
+            risk_score = risk_data[i]['risk_score']
+            output.append(f"File: {file_name}")
+            output.append(f"Risk Score: {float(risk_score):.1f}/100")
+        else:
+            output.append(f"File: {file_name}")
+            output.append(f"Risk Score: Error - no prediction available")
     
     return "\n".join(output)
 
@@ -138,10 +172,12 @@ def predict(features_file, model_dir="trained_model"):
     
     print(f"Debug: Processing {len(file_names)} files", file=sys.stderr)
     print(f"Debug: File names: {file_names}", file=sys.stderr)
+    print(f"Debug: X_test shape: {X_test.shape}", file=sys.stderr)
                 
     # Make predictions (PDF values)
     pdf_predictions = classifier.predict(X_test)
     print(f"Debug: Predictions shape: {pdf_predictions.shape}", file=sys.stderr)
+    print(f"Debug: Predictions type: {type(pdf_predictions)}", file=sys.stderr)
     
     # Convert to interpretable risk scores
     risk_data = convert_to_risk_scores(pdf_predictions)
