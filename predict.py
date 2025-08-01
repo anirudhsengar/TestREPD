@@ -43,25 +43,56 @@ def format_predictions(predictions):
     
     return results
 
+def format_results_for_comparison(file_names, base_data, head_data):
+    """Format results as tables comparing BEFORE and AFTER for each file"""
+    output = ["## 📊 Bug Prediction Analysis\n"]
+    
+    for i, file_name in enumerate(file_names):
+        output.append(f"### File: `{file_name}`\n")
+        
+        # Get base and head predictions for this file
+        if i < len(base_data) and i < len(head_data):
+            base_defective = base_data[i]['p_defective']
+            base_non_defective = base_data[i]['p_non_defective']
+            head_defective = head_data[i]['p_defective']
+            head_non_defective = head_data[i]['p_non_defective']
+            
+            # Create table
+            output.append("| Metric | BEFORE PR | AFTER PR |")
+            output.append("|--------|-----------|----------|")
+            output.append(f"| PDF(Defective \\| Reconstruction Error) | {base_defective:.10f} | {head_defective:.10f} |")
+            output.append(f"| PDF(Non-Defective \\| Reconstruction Error) | {base_non_defective:.10f} | {head_non_defective:.10f} |")
+            output.append("")
+            
+        else:
+            output.append("| Status |")
+            output.append("|--------|")
+            output.append("| Error: Prediction data not available |")
+            output.append("")
+    
+    return "\n".join(output)
+
 def format_results(file_names, prediction_data):
-    """Format results with probability values"""
-    output = ["🎯 Bug Prediction Analysis\n"]
+    """Format results with probability values (for individual calls)"""
+    results = []
     
     for i, file_name in enumerate(file_names):
         if i < len(prediction_data):
             p_defective = prediction_data[i]['p_defective']
             p_non_defective = prediction_data[i]['p_non_defective']
             
-            output.append(f"File: {file_name}")
-            output.append(f"PDF(Defective | Reconstruction Error): {p_defective}")
-            output.append(f"PDF(Non-Defective | Reconstruction Error): {p_non_defective}")
-            output.append("")
+            results.append({
+                'file': file_name,
+                'p_defective': p_defective,
+                'p_non_defective': p_non_defective
+            })
         else:
-            output.append(f"File: {file_name}")
-            output.append("Error: No prediction available")
-            output.append("")
+            results.append({
+                'file': file_name,
+                'error': 'No prediction available'
+            })
     
-    return "\n".join(output)
+    return results
 
 def get_distribution_class(dist_name):
     """Get the distribution class (not frozen) from scipy.stats"""
@@ -136,8 +167,8 @@ def predict(features_file, model_dir="trained_model"):
     
     # Check if CSV has data rows (more than just header)
     if len(df_test) == 0:
-        print("🎯 Bug Prediction Analysis\n\nNo files to analyze.")
-        return
+        print("No files to analyze.")
+        return []
     
     file_names = df_test["File"].values
     X_test = df_test.drop(columns=["File"]).values
@@ -145,7 +176,6 @@ def predict(features_file, model_dir="trained_model"):
     print(f"Debug: Processing {len(file_names)} files", file=sys.stderr)
     print(f"Debug: File names: {file_names}", file=sys.stderr)
     print(f"Debug: X_test shape: {X_test.shape}", file=sys.stderr)
-    print(f"Debug: X_test content:\n{X_test}", file=sys.stderr)
                 
     # Make predictions (PDF values)
     pdf_predictions = classifier.predict(X_test)
@@ -155,11 +185,13 @@ def predict(features_file, model_dir="trained_model"):
     # Format predictions for display
     prediction_data = format_predictions(pdf_predictions)
 
-    # Format and print results
-    print(format_results(file_names, prediction_data))
+    # Format and return results
+    results = format_results(file_names, prediction_data)
     
     # Close the session
     classifier.dim_reduction_model.close()
+    
+    return results
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -168,4 +200,15 @@ if __name__ == "__main__":
         sys.exit(1)
     
     features_csv_path = sys.argv[1]
-    predict(features_csv_path)
+    results = predict(features_csv_path)
+    
+    # For command line usage, print individual results
+    for result in results:
+        if 'error' in result:
+            print(f"File: {result['file']}")
+            print(f"Error: {result['error']}")
+        else:
+            print(f"File: {result['file']}")
+            print(f"PDF(Defective | Reconstruction Error): {result['p_defective']:.10f}")
+            print(f"PDF(Non-Defective | Reconstruction Error): {result['p_non_defective']:.10f}")
+        print()

@@ -123,19 +123,39 @@ jobs:
       id: prediction
       run: |
         echo "Running predictions with trained model..."
-        output_base=$(python predict.py metrics_output_base/summary_metrics.csv)
-        output_head=$(python predict.py metrics_output_head/summary_metrics.csv)
+        
+        # Create a Python script to handle the comparison
+        cat > compare_predictions.py << 'EOF'
+        import sys
+        import json
+        from predict import predict, format_results_for_comparison
+        
+        # Get predictions for base and head
+        base_results = predict('metrics_output_base/summary_metrics.csv')
+        head_results = predict('metrics_output_head/summary_metrics.csv')
+        
+        # Extract file names (should be the same for both)
+        file_names = [result['file'] for result in base_results if 'file' in result]
+        
+        # Convert to the format expected by format_results_for_comparison
+        base_data = [{'p_defective': r['p_defective'], 'p_non_defective': r['p_non_defective']} 
+                     for r in base_results if 'p_defective' in r]
+        head_data = [{'p_defective': r['p_defective'], 'p_non_defective': r['p_non_defective']} 
+                     for r in head_results if 'p_defective' in r]
+        
+        # Generate comparison table
+        comparison_output = format_results_for_comparison(file_names, base_data, head_data)
+        
+        print(comparison_output)
+        EOF
+        
+        comparison_result=$(python compare_predictions.py)
+        
         {
           echo "comment<<EOF"
-          echo "## 📊 Bug Risk Analysis"
+          echo "$comparison_result"
           echo ""
-          echo "### 🔄 BEFORE PR Changes:"
-          echo "$output_base"
-          echo ""
-          echo "### ✅ AFTER PR Changes:"
-          echo "$output_head"
-          echo ""
-          echo "Interpretation Note:"
+          echo "### 📋 Interpretation Note:"
           echo "> The values shown are Probability Densities (PDFs), not probabilities. They represent the model's assessment of how likely a file's characteristics are to be 'defective' vs. 'non-defective'. A higher value indicates a better fit for that category. Very small values are expected and normal."
           echo ""
           echo "EOF"
