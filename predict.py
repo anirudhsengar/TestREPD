@@ -209,6 +209,6 @@ if __name__ == "__main__":
             print(f"Error: {result['error']}")
         else:
             print(f"File: {result['file']}")
-            print(f"PDF(Defective | Reconstruction Error): {result['p_defective']:.10f}")
-            print(f"PDF(Non-Defective | Reconstruction Error): {result['p_non_defective']:.10f}")
+            print(f"PDF(Defective | Reconstruction Error): {result['p_defective']}")
+            print(f"PDF(Non-Defective | Reconstruction Error): {result['p_non_defective']}")
         print()
