@@ -135,10 +135,6 @@ jobs:
           echo "### ✅ AFTER PR Changes:"
           echo "$output_head"
           echo ""
-          echo "### 💡 Interpretation:"
-          echo "- **Higher risk scores** indicate increased likelihood of bugs"
-          echo "- **Lower risk scores** suggest improved code quality"
-          echo "- Compare BEFORE vs AFTER to see the impact of your changes"
           echo "EOF"
         } >> $GITHUB_OUTPUT
 
