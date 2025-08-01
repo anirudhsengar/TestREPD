@@ -431,9 +431,9 @@ TR_VectorAPIExpansion::visitNodeToBuildVectorAliases(TR::Node *node, bool verify
                objectType = Vector;
                }
             }
-         else if (objectType == Unknown)
+         else
             {
-            objectType = objectTypeFromClass;
+            TR_ASSERT_FATAL (objectType != Unknown, "Object type should be known");
             }
          }
 
@@ -674,8 +674,7 @@ TR_VectorAPIExpansion::visitNodeToBuildVectorAliases(TR::Node *node, bool verify
       }
    else if (boxingAllowed() &&
             (node->getOpCodeValue() == TR::checkcast ||
-             node->getOpCodeValue() == TR::athrow ||
-             node->getOpCodeValue() == TR::awrtbar))
+             node->getOpCodeValue() == TR::athrow))
       {
       // do nothing here to allow this treetop when boxing is enabled
       }
