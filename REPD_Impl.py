@@ -50,7 +50,21 @@ class REPD:
         p_nd = self.get_non_defect_probability(test_errors)
         p_d = self.get_defect_probability(test_errors)
         
-        return np.asarray([(p_nd, p_d) for i in range(len(X))]) # P of Non defective, P of Defective
+        # Fix: Create pairs of (p_nd[i], p_d[i]) for each sample i
+        # Instead of repeating the same values for all samples
+        predictions = []
+        for i in range(len(X)):
+            # Handle both scalar and array cases
+            if np.isscalar(p_nd):
+                pred_nd = p_nd
+                pred_d = p_d
+            else:
+                pred_nd = p_nd[i] if i < len(p_nd) else p_nd[0]
+                pred_d = p_d[i] if i < len(p_d) else p_d[0]
+            
+            predictions.append((pred_d, pred_nd))  # Note: switched order to match your expected format
+        
+        return np.asarray(predictions)
     
     def get_non_defect_probability(self,errors):
         return self.__get_data_probability__(errors,self.dnd,self.dnd_pa)
@@ -100,4 +114,3 @@ class REPD:
         """Load the REPD model"""
         # Load autoencoder
         self.autoencoder.load(os.path.join(directory, "autoencoder"))
-        
