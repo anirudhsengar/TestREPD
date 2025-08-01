@@ -50,16 +50,19 @@ jobs:
         # Create base metrics directory
         mkdir -p metrics_output_base
         
+        # Initialize combined CSV with header
+        echo "File,loc,v(g),ev(g),iv(g),n,v,l,d,i,e,b,t,lOComment,lOBlank,LOCodeAndComment,uniq_Op,Uniq_Opnd,total_Op,total_Opnd,branchCount" > metrics_output_base/summary_metrics.csv
+        
         # Process each file and accumulate results
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           echo "Processing $file for base metrics..."
           ./ExtractTraditionalFeatures.sh "$file"
           
-          # Find the generated directory and copy its contents
+          # Find the generated directory and append its CSV data (skip header)
           generated_dir=$(ls -td metrics_output_* | head -n 1)
-          if [ -d "$generated_dir" ]; then
-            # Copy files to our accumulated directory
-            cp -r "$generated_dir"/* metrics_output_base/ 2>/dev/null || true
+          if [ -d "$generated_dir" ] && [ -f "$generated_dir/summary_metrics.csv" ]; then
+            # Append data rows (skip header line)
+            tail -n +2 "$generated_dir/summary_metrics.csv" >> metrics_output_base/summary_metrics.csv
             # Clean up the temporary directory
             rm -rf "$generated_dir"
           fi
@@ -74,20 +77,36 @@ jobs:
         # Create head metrics directory
         mkdir -p metrics_output_head
         
+        # Initialize combined CSV with header
+        echo "File,loc,v(g),ev(g),iv(g),n,v,l,d,i,e,b,t,lOComment,lOBlank,LOCodeAndComment,uniq_Op,Uniq_Opnd,total_Op,total_Opnd,branchCount" > metrics_output_head/summary_metrics.csv
+        
         # Process each file and accumulate results
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           echo "Processing $file for head metrics..."
           ./ExtractTraditionalFeatures.sh "$file"
           
-          # Find the generated directory and copy its contents
+          # Find the generated directory and append its CSV data (skip header)
           generated_dir=$(ls -td metrics_output_* | head -n 1)
-          if [ -d "$generated_dir" ]; then
-            # Copy files to our accumulated directory
-            cp -r "$generated_dir"/* metrics_output_head/ 2>/dev/null || true
+          if [ -d "$generated_dir" ] && [ -f "$generated_dir/summary_metrics.csv" ]; then
+            # Append data rows (skip header line)
+            tail -n +2 "$generated_dir/summary_metrics.csv" >> metrics_output_head/summary_metrics.csv
             # Clean up the temporary directory
             rm -rf "$generated_dir"
           fi
         done
+
+    - name: Debug accumulated metrics
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "=== Changed files ==="
+        echo "${{ steps.changed-files.outputs.all_changed_files }}"
+        echo "=== Base metrics CSV ==="
+        cat metrics_output_base/summary_metrics.csv
+        echo "=== Head metrics CSV ==="
+        cat metrics_output_head/summary_metrics.csv
+        echo "=== Row counts ==="
+        echo "Base rows: $(wc -l < metrics_output_base/summary_metrics.csv)"
+        echo "Head rows: $(wc -l < metrics_output_head/summary_metrics.csv)"
 
     - name: Verify or create trained model
       if: steps.changed-files.outputs.any_changed == 'true'
