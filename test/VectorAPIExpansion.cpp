@@ -247,7 +247,7 @@ void
 TR_VectorAPIExpansion::buildVectorAliases(bool verifyMode)
    {
    if (_trace)
-      traceMsg(comp(), "%s Aliasing symrefs verifyMode=%d\n", OPT_DETAILS_VECTOR, verifyMode);
+      traceMsg(comp(), "%s Aliasing symrefs verifyMode=%\n", OPT_DETAILS_VECTOR, verifyMode);
 
    _visitedNodes.empty();
 
@@ -409,7 +409,14 @@ TR_VectorAPIExpansion::visitNodeToBuildVectorAliases(TR::Node *node, bool verify
          if (getSecondClassIndex(methodSymbol) != -1)
             getObjectTypeFromClassNode(comp(), node->getChild(getSecondClassIndex(methodSymbol)));
 
-         if (methodSymbol->getRecognizedMethod() == TR::jdk_internal_vm_vector_VectorSupport_compressExpandOp)
+         if (methodSymbol->getRecognizedMethod() == TR::jdk_internal_vm_vector_VectorSupport_load ||
+             methodSymbol->getRecognizedMethod() == TR::jdk_internal_vm_vector_VectorSupport_store ||
+             methodSymbol->getRecognizedMethod() == TR::jdk_internal_vm_vector_VectorSupport_fromBitsCoerced ||
+             methodSymbol->getRecognizedMethod() == TR::jdk_internal_vm_vector_VectorSupport_binaryOp)
+            {
+            objectType = objectTypeFromClass;
+            }
+         else if (methodSymbol->getRecognizedMethod() == TR::jdk_internal_vm_vector_VectorSupport_compressExpandOp)
             {
             if (!node->getFirstChild()->getOpCode().isLoadConst())
                {
@@ -424,9 +431,9 @@ TR_VectorAPIExpansion::visitNodeToBuildVectorAliases(TR::Node *node, bool verify
                objectType = Vector;
                }
             }
-         else if (objectType == Unknown)
+         else
             {
-            objectType = objectTypeFromClass;
+            TR_ASSERT_FATAL (objectType != Unknown, "Object type should be known");
             }
          }
 
@@ -667,8 +674,7 @@ TR_VectorAPIExpansion::visitNodeToBuildVectorAliases(TR::Node *node, bool verify
       }
    else if (boxingAllowed() &&
             (node->getOpCodeValue() == TR::checkcast ||
-             node->getOpCodeValue() == TR::athrow ||
-             node->getOpCodeValue() == TR::awrtbar))
+             node->getOpCodeValue() == TR::athrow))
       {
       // do nothing here to allow this treetop when boxing is enabled
       }
