@@ -46,22 +46,48 @@ jobs:
       run: |
         git checkout ${{ github.event.pull_request.base.sha }}
         chmod +x ./ExtractTraditionalFeatures.sh
+        
+        # Create base metrics directory
+        mkdir -p metrics_output_base
+        
+        # Process each file and accumulate results
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          echo "Processing $file for base metrics..."
           ./ExtractTraditionalFeatures.sh "$file"
+          
+          # Find the generated directory and copy its contents
+          generated_dir=$(ls -td metrics_output_* | head -n 1)
+          if [ -d "$generated_dir" ]; then
+            # Copy files to our accumulated directory
+            cp -r "$generated_dir"/* metrics_output_base/ 2>/dev/null || true
+            # Clean up the temporary directory
+            rm -rf "$generated_dir"
+          fi
         done
-        generated_dir=$(ls -d metrics_output_* | head -n 1)
-        mv "$generated_dir" metrics_output_base
 
     - name: Extract features AFTER changes (head)
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         git checkout ${{ github.event.pull_request.head.sha }}
         chmod +x ./ExtractTraditionalFeatures.sh
+        
+        # Create head metrics directory
+        mkdir -p metrics_output_head
+        
+        # Process each file and accumulate results
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          echo "Processing $file for head metrics..."
           ./ExtractTraditionalFeatures.sh "$file"
+          
+          # Find the generated directory and copy its contents
+          generated_dir=$(ls -td metrics_output_* | head -n 1)
+          if [ -d "$generated_dir" ]; then
+            # Copy files to our accumulated directory
+            cp -r "$generated_dir"/* metrics_output_head/ 2>/dev/null || true
+            # Clean up the temporary directory
+            rm -rf "$generated_dir"
+          fi
         done
-        generated_dir=$(ls -d metrics_output_* | head -n 1)
-        mv "$generated_dir" metrics_output_head
 
     - name: Verify or create trained model
       if: steps.changed-files.outputs.any_changed == 'true'
