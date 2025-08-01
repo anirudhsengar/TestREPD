@@ -17,20 +17,10 @@ def format_predictions(predictions):
     """Format PDF predictions for display"""
     results = []
     
-    print(f"Debug: Original predictions shape: {predictions.shape}", file=sys.stderr)
-    print(f"Debug: Original predictions content: {predictions}", file=sys.stderr)
+    print(f"Debug: Predictions shape: {predictions.shape}", file=sys.stderr)
+    print(f"Debug: Predictions content: {predictions}", file=sys.stderr)
     
-    # Handle the 3D case: (n_samples, 2, 2) -> (n_samples, 2)
-    if len(predictions.shape) == 3 and predictions.shape[1] == 2 and predictions.shape[2] == 2:
-        # Take the first row of each 2x2 matrix for each sample
-        predictions = predictions[:, 0, :]
-        print(f"Debug: Reshaped 3D to 2D: {predictions.shape}", file=sys.stderr)
-        print(f"Debug: Reshaped content: {predictions}", file=sys.stderr)
-    
-    # Handle single prediction case
-    if len(predictions.shape) == 1:
-        predictions = predictions.reshape(1, -1)
-    
+    # Now predictions should be (n_samples, 2) - no more 3D arrays!
     for i in range(predictions.shape[0]):
         pred = predictions[i]
         print(f"Debug: Processing prediction {i}: {pred}", file=sys.stderr)
@@ -65,12 +55,12 @@ def format_results(file_names, prediction_data):
             factor = pow(10, 10)
             
             output.append(f"File: {file_name}")
-            output.append(f" P(Defective | Reconstruction Error): {(p_defective * factor):.5}")
-            output.append(f" P(Non-Defective | Reconstruction Error): {(p_non_defective * factor):.5}")
+            output.append(f"P(Defective | Reconstruction Error): {(p_defective * factor):.5}")
+            output.append(f"P(Non-Defective | Reconstruction Error): {(p_non_defective * factor):.5}")
             output.append("")
         else:
             output.append(f"File: {file_name}")
-            output.append(" Error: No prediction available")
+            output.append("Error: No prediction available")
             output.append("")
     
     return "\n".join(output)
@@ -157,6 +147,7 @@ def predict(features_file, model_dir="trained_model"):
     print(f"Debug: Processing {len(file_names)} files", file=sys.stderr)
     print(f"Debug: File names: {file_names}", file=sys.stderr)
     print(f"Debug: X_test shape: {X_test.shape}", file=sys.stderr)
+    print(f"Debug: X_test content:\n{X_test}", file=sys.stderr)
                 
     # Make predictions (PDF values)
     pdf_predictions = classifier.predict(X_test)
