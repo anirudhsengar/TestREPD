@@ -53,8 +53,8 @@ def format_results(file_names, prediction_data):
             p_non_defective = prediction_data[i]['p_non_defective']
             
             output.append(f"File: {file_name}")
-            output.append(f"PDF(Defective | Reconstruction Error): {p_defective:.10f}")
-            output.append(f"PDF(Non-Defective | Reconstruction Error): {p_non_defective:.10f}")
+            output.append(f"PDF(Defective | Reconstruction Error): {p_defective}")
+            output.append(f"PDF(Non-Defective | Reconstruction Error): {p_non_defective}")
             output.append("")
         else:
             output.append(f"File: {file_name}")
