@@ -135,6 +135,9 @@ jobs:
           echo "### ✅ AFTER PR Changes:"
           echo "$output_head"
           echo ""
+          echo "Interpretation Note:"
+          echo "> The values shown are Probability Densities (PDFs), not probabilities. They represent the model's assessment of how likely a file's characteristics are to be 'defective' vs. 'non-defective'. A higher value indicates a better fit for that category. Very small values are expected and normal."
+          echo ""
           echo "EOF"
         } >> $GITHUB_OUTPUT
 
