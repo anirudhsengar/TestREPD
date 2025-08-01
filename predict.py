@@ -60,8 +60,8 @@ def format_results_for_comparison(file_names, base_data, head_data):
             # Create table
             output.append("| Metric | BEFORE PR | AFTER PR |")
             output.append("|--------|-----------|----------|")
-            output.append(f"| PDF(Defective \\| Reconstruction Error) | {base_defective:.10f} | {head_defective:.10f} |")
-            output.append(f"| PDF(Non-Defective \\| Reconstruction Error) | {base_non_defective:.10f} | {head_non_defective:.10f} |")
+            output.append(f"| PDF(Defective \\| Reconstruction Error) | {base_defective} | {head_defective} |")
+            output.append(f"| PDF(Non-Defective \\| Reconstruction Error) | {base_non_defective} | {head_non_defective} |")
             output.append("")
             
         else:
