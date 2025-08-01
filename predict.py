@@ -17,9 +17,19 @@ def convert_to_risk_scores(predictions):
     """Convert PDF values to interpretable risk scores (0-100)"""
     risk_scores = []
     
-    for pred in predictions:
+    # Handle both single prediction and multiple predictions
+    if len(predictions.shape) == 1:
+        # Single prediction - reshape to 2D
+        predictions = predictions.reshape(1, -1)
+    
+    for i in range(predictions.shape[0]):
+        pred = predictions[i]
         defective_pdf = pred[0]
         non_defective_pdf = pred[1]
+        
+        # Convert numpy values to Python floats for comparison
+        defective_pdf = float(defective_pdf)
+        non_defective_pdf = float(non_defective_pdf)
         
         # Use ratio-based approach for better interpretation
         total = defective_pdf + non_defective_pdf
@@ -117,11 +127,21 @@ def predict(features_file, model_dir="trained_model"):
     
     # Load test data
     df_test = pd.read_csv(features_file)
+    
+    # Check if CSV has data rows (more than just header)
+    if len(df_test) == 0:
+        print("🎯 Code Quality Risk Assessment\n\nNo files to analyze.")
+        return
+    
     file_names = df_test["File"].values
     X_test = df_test.drop(columns=["File"]).values
+    
+    print(f"Debug: Processing {len(file_names)} files", file=sys.stderr)
+    print(f"Debug: File names: {file_names}", file=sys.stderr)
                 
     # Make predictions (PDF values)
     pdf_predictions = classifier.predict(X_test)
+    print(f"Debug: Predictions shape: {pdf_predictions.shape}", file=sys.stderr)
     
     # Convert to interpretable risk scores
     risk_data = convert_to_risk_scores(pdf_predictions)
