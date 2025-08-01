@@ -22,9 +22,18 @@ def convert_to_risk_scores(predictions):
     
     # Handle the 3D case: (n_samples, 2, 2) -> (n_samples, 2)
     if len(predictions.shape) == 3 and predictions.shape[1] == 2 and predictions.shape[2] == 2:
-        # Take the first row of each 2x2 matrix for each sample
-        predictions = predictions[:, 0, :]
-        print(f"Debug: Reshaped 3D to 2D: {predictions.shape}", file=sys.stderr)
+        # The issue is here - we need to take different rows for different samples
+        # Instead of taking only the first row, let's take the diagonal
+        new_predictions = []
+        for i in range(predictions.shape[0]):
+            # Take the i-th row of the i-th sample's 2x2 matrix (if available)
+            if i < predictions.shape[1]:
+                new_predictions.append(predictions[i, i, :])
+            else:
+                # Fallback to first row if we run out of rows
+                new_predictions.append(predictions[i, 0, :])
+        predictions = np.array(new_predictions)
+        print(f"Debug: Reshaped 3D to 2D using diagonal: {predictions.shape}", file=sys.stderr)
         print(f"Debug: Reshaped content: {predictions}", file=sys.stderr)
     
     # Handle single prediction case
@@ -59,7 +68,7 @@ def convert_to_risk_scores(predictions):
         })
     
     return risk_scores
-    
+
 def format_results(file_names, risk_data):
     """Format results with interpretable risk scores"""
     output = ["🎯 Code Quality Risk Assessment\n"]
@@ -67,8 +76,13 @@ def format_results(file_names, risk_data):
     for i, file_name in enumerate(file_names):
         if i < len(risk_data):
             risk_score = risk_data[i]['risk_score']
-            output.append(f"File: {file_name}")
-            output.append(f"Risk Score: {float(risk_score):.1f}/100")
+            # Show more decimal places for very small values
+            if risk_score < 1.0:
+                output.append(f"File: {file_name}")
+                output.append(f"Risk Score: {float(risk_score):.3f}/100")
+            else:
+                output.append(f"File: {file_name}")
+                output.append(f"Risk Score: {float(risk_score):.1f}/100")
         else:
             output.append(f"File: {file_name}")
             output.append(f"Risk Score: Error - no prediction available")
