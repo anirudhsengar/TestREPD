@@ -97,7 +97,7 @@ def format_results_for_comparison(file_names, base_data, head_data):
     
     for file_data in file_changes:
         file_name = file_data['file_name']
-        output.append(f"### File: `{file_name}`\n")
+        output.append(f"#### File: `{file_name}`\n")
         
         if 'error' in file_data:
             output.append("| Status |")
@@ -124,8 +124,8 @@ def format_results_for_comparison(file_names, base_data, head_data):
             # Create table with 4 columns
             output.append("| Metric | BEFORE PR | AFTER PR | % Change |")
             output.append("|--------|-----------|----------|----------|")
-            output.append(f"| PDF(Defective \\| Reconstruction Error) | {base_defective:.10f} | {head_defective:.10f} | {format_change(defective_change)} |")
-            output.append(f"| PDF(Non-Defective \\| Reconstruction Error) | {base_non_defective:.10f} | {head_non_defective:.10f} | {format_change(non_defective_change)} |")
+            output.append(f"| PDF(Defective \\| Reconstruction Error) | {base_defective} | {head_defective} | {format_change(defective_change)} |")
+            output.append(f"| PDF(Non-Defective \\| Reconstruction Error) | {base_non_defective} | {head_non_defective} | {format_change(non_defective_change)} |")
             output.append("")
     
     return "\n".join(output)
