@@ -124,7 +124,7 @@ def format_results_for_comparison(file_names, base_data, head_data):
             before = "Defective" if base_defective > base_non_defective else "Non-Defective"
             after = "Defective" if head_defective > head_non_defective else "Non-Defective"
 
-            output.append("Outcome:", before, "->", after)
+            output.append("Outcome: " + before + " -> " + after)
             
             # Create table with 4 columns
             output.append("| Metric | BEFORE PR | AFTER PR | % Change |")
