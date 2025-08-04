@@ -45,29 +45,87 @@ def format_predictions(predictions):
 
 def format_results_for_comparison(file_names, base_data, head_data):
     """Format results as tables comparing BEFORE and AFTER for each file"""
-    output = ["## 📊 Bug Prediction Analysis\n"]
+    
+    # First, calculate percentage changes for all files to determine sorting order
+    file_changes = []
     
     for i, file_name in enumerate(file_names):
-        output.append(f"### File: `{file_name}`\n")
-        
-        # Get base and head predictions for this file
         if i < len(base_data) and i < len(head_data):
             base_defective = base_data[i]['p_defective']
             base_non_defective = base_data[i]['p_non_defective']
             head_defective = head_data[i]['p_defective']
             head_non_defective = head_data[i]['p_non_defective']
             
-            # Create table
-            output.append("| Metric | BEFORE PR | AFTER PR |")
-            output.append("|--------|-----------|----------|")
-            output.append(f"| PDF(Defective \\| Reconstruction Error) | {base_defective} | {head_defective} |")
-            output.append(f"| PDF(Non-Defective \\| Reconstruction Error) | {base_non_defective} | {head_non_defective} |")
-            output.append("")
+            # Calculate percentage changes
+            if base_defective != 0:
+                defective_change = ((head_defective - base_defective) / abs(base_defective)) * 100
+            else:
+                defective_change = 0 if head_defective == 0 else float('inf')
             
+            if base_non_defective != 0:
+                non_defective_change = ((head_non_defective - base_non_defective) / abs(base_non_defective)) * 100
+            else:
+                non_defective_change = 0 if head_non_defective == 0 else float('inf')
+            
+            # Use the maximum absolute change for sorting
+            max_change = max(abs(defective_change), abs(non_defective_change))
+            
+            file_changes.append({
+                'index': i,
+                'file_name': file_name,
+                'max_change': max_change,
+                'defective_change': defective_change,
+                'non_defective_change': non_defective_change,
+                'base_defective': base_defective,
+                'base_non_defective': base_non_defective,
+                'head_defective': head_defective,
+                'head_non_defective': head_non_defective
+            })
         else:
+            file_changes.append({
+                'index': i,
+                'file_name': file_name,
+                'max_change': 0,
+                'error': True
+            })
+    
+    # Sort files by maximum percentage change in descending order
+    file_changes.sort(key=lambda x: x['max_change'], reverse=True)
+    
+    # Generate output with sorted files
+    output = ["## 📊 Bug Prediction Analysis\n"]
+    
+    for file_data in file_changes:
+        file_name = file_data['file_name']
+        output.append(f"### File: `{file_name}`\n")
+        
+        if 'error' in file_data:
             output.append("| Status |")
             output.append("|--------|")
             output.append("| Error: Prediction data not available |")
+            output.append("")
+        else:
+            base_defective = file_data['base_defective']
+            base_non_defective = file_data['base_non_defective']
+            head_defective = file_data['head_defective']
+            head_non_defective = file_data['head_non_defective']
+            defective_change = file_data['defective_change']
+            non_defective_change = file_data['non_defective_change']
+            
+            # Format percentage change values
+            def format_change(change_val):
+                if change_val == float('inf'):
+                    return "∞%"
+                elif change_val == float('-inf'):
+                    return "-∞%"
+                else:
+                    return f"{change_val:+.2f}%"
+            
+            # Create table with 4 columns
+            output.append("| Metric | BEFORE PR | AFTER PR | % Change |")
+            output.append("|--------|-----------|----------|----------|")
+            output.append(f"| PDF(Defective \\| Reconstruction Error) | {base_defective:.10f} | {head_defective:.10f} | {format_change(defective_change)} |")
+            output.append(f"| PDF(Non-Defective \\| Reconstruction Error) | {base_non_defective:.10f} | {head_non_defective:.10f} | {format_change(non_defective_change)} |")
             output.append("")
     
     return "\n".join(output)
