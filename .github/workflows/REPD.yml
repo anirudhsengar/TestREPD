@@ -30,6 +30,24 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cloc
 
+    - name: Download scripts from script repository
+      run: |
+        echo "Downloading scripts from aqa-test-tools repository..."
+        curl -L -o extract_traditional_features.sh "https://raw.githubusercontent.com/anirudhsengar/aqa-test-tools/GlitchWitchcer/BugPredict/GlitchWitcher/extract_traditional_features.sh"
+        curl -L -o predict.py "https://raw.githubusercontent.com/anirudhsengar/aqa-test-tools/GlitchWitchcer/BugPredict/GlitchWitcher/predict.py"
+        curl -L -o REPD_Impl.py "https://raw.githubusercontent.com/anirudhsengar/aqa-test-tools/GlitchWitchcer/BugPredict/GlitchWitcher/REPD_Impl.py"
+        curl -L -o autoencoder.py "https://raw.githubusercontent.com/anirudhsengar/aqa-test-tools/GlitchWitchcer/BugPredict/GlitchWitcher/autoencoder.py"
+        curl -L -o stat_util.py "https://raw.githubusercontent.com/anirudhsengar/aqa-test-tools/GlitchWitchcer/BugPredict/GlitchWitcher/stat_util.py"
+        chmod +x extract_traditional_features.sh
+
+    - name: Download trained model
+      run: |
+        echo "Downloading trained model from aqa-triage-data repository..."
+        mkdir -p trained_model
+        curl -L -o trained_model/metadata.json "https://raw.githubusercontent.com/anirudhsengar/aqa-triage-data/main/GlitchWitcher/Traditional%20Dataset/trained_model/metadata.json"
+        curl -L -o trained_model/model.pkl "https://raw.githubusercontent.com/anirudhsengar/aqa-triage-data/main/GlitchWitcher/Traditional%20Dataset/trained_model/model.pkl"
+        curl -L -o trained_model/preprocessor.pkl "https://raw.githubusercontent.com/anirudhsengar/aqa-triage-data/main/GlitchWitcher/Traditional%20Dataset/trained_model/preprocessor.pkl"
+
     - name: Get changed files
       id: changed-files
       run: |
@@ -45,7 +63,6 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         git checkout ${{ github.event.pull_request.base.sha }}
-        chmod +x ./extract_traditional_features.sh
         
         # Create base metrics directory
         mkdir -p metrics_output_base
@@ -72,7 +89,6 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         git checkout ${{ github.event.pull_request.head.sha }}
-        chmod +x ./extract_traditional_features.sh
         
         # Create head metrics directory
         mkdir -p metrics_output_head
@@ -107,16 +123,6 @@ jobs:
         echo "=== Row counts ==="
         echo "Base rows: $(wc -l < metrics_output_base/summary_metrics.csv)"
         echo "Head rows: $(wc -l < metrics_output_head/summary_metrics.csv)"
-
-    - name: Verify or create trained model
-      if: steps.changed-files.outputs.any_changed == 'true'
-      run: |
-        if [ ! -d "trained_model" ] || [ ! -f "trained_model/metadata.json" ]; then
-          echo "Training new model..."
-          python save_trained_model.py
-        else
-          echo "Trained model found ✅"
-        fi
 
     - name: Run prediction
       if: steps.changed-files.outputs.any_changed == 'true'
