@@ -45,7 +45,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         git checkout ${{ github.event.pull_request.base.sha }}
-        chmod +x ./ExtractTraditionalFeatures.sh
+        chmod +x ./extract_traditional_features.sh
         
         # Create base metrics directory
         mkdir -p metrics_output_base
@@ -56,7 +56,7 @@ jobs:
         # Process each file and accumulate results
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           echo "Processing $file for base metrics..."
-          ./ExtractTraditionalFeatures.sh "$file"
+          ./extract_traditional_features.sh "$file"
           
           # Find the generated directory and append its CSV data (skip header)
           generated_dir=$(ls -td metrics_output_* | head -n 1)
@@ -72,7 +72,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         git checkout ${{ github.event.pull_request.head.sha }}
-        chmod +x ./ExtractTraditionalFeatures.sh
+        chmod +x ./extract_traditional_features.sh
         
         # Create head metrics directory
         mkdir -p metrics_output_head
@@ -83,7 +83,7 @@ jobs:
         # Process each file and accumulate results
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           echo "Processing $file for head metrics..."
-          ./ExtractTraditionalFeatures.sh "$file"
+          ./extract_traditional_features.sh "$file"
           
           # Find the generated directory and append its CSV data (skip header)
           generated_dir=$(ls -td metrics_output_* | head -n 1)
