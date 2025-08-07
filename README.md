@@ -41,28 +41,29 @@ This project implements a novel approach to software defect prediction that comb
 
 ## 📊 Example Output
 
-```
-📊 Bug Risk Analysis
+### 📊 Bug Prediction Analysis
 
-### 🔄 BEFORE PR Changes:
-🎯 Bug Prediction Analysis
+#### File: `example.cpp`
 
-File: example.cpp
-pdf(Defective | Reconstruction Error): 2.51234e-08
-pdf(Non-Defective | Reconstruction Error): 8.94561e-09
+Outcome: Defective -> Non-Defective
 
-### ✅ AFTER PR Changes:
-🎯 Bug Prediction Analysis
+| Metric | BEFORE PR | AFTER PR | % Change |
+|--------|-----------|----------|----------|
+| PDF(Defective \| Reconstruction Error) | 2.51234e-08 | 1.12345e-08 | -55.23% |
+| PDF(Non-Defective \| Reconstruction Error) | 8.94561e-09 | 7.65432e-08 | +755.44% |
 
-File: example.cpp
-pdf(Defective | Reconstruction Error): 1.12345e-08
-pdf(Non-Defective | Reconstruction Error): 7.65432e-08
+#### File: `utils.cpp`
 
-### 💡 Interpretation:
-- The model provides Probability Density Function (PDF) values, not absolute probabilities.
-- For each file, compare the `pdf(Defective)` and `pdf(Non-Defective)` values. The higher value indicates the model's classification.
-- In the "AFTER" example, the `pdf(Non-Defective)` value is now significantly higher, suggesting the PR changes made the code look less like historically defective files.
-```
+Outcome: Non-Defective -> Non-Defective
+
+| Metric | BEFORE PR | AFTER PR | % Change |
+|--------|-----------|----------|----------|
+| PDF(Defective \| Reconstruction Error) | 5.67890e-09 | 4.23456e-09 | -25.43% |
+| PDF(Non-Defective \| Reconstruction Error) | 3.21098e-08 | 3.87654e-08 | +20.73% |
+
+
+### 📋 Interpretation Note:
+> The values shown are Probability Densities (PDFs), not probabilities. They represent the model's assessment of how likely a file's characteristics are to be 'defective' vs. 'non-defective'. A higher value indicates a better fit for that category. Very small values are expected and normal.
 
 ## 📚 Citation
 
