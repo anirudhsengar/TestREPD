@@ -12,113 +12,185 @@ permissions:
 jobs:
   predict:
     runs-on: ubuntu-latest
-
     steps:
-    # ---------------------------
-    # 1. Checkout repository
-    # ---------------------------
-    - name: Checkout code
+
+    # 1) Checkout the repository with full history so we can diff commits
+    - name: Checkout repository (full fetch)
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    # ---------------------------
-    # 2. Set up Python
-    # ---------------------------
-    - name: Set up Python
+    # 2) Set up Python
+    - name: Set up Python 3.10
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    # ---------------------------
-    # 3. Install dependencies
-    # ---------------------------
+    # 3) Install dependencies inside a venv
     - name: Install dependencies
       run: |
         python -m venv venv
         source venv/bin/activate
+        pip install --upgrade pip
         pip install javalang pandas
 
-    # ---------------------------
-    # 4. Detect changed Java files
-    # ---------------------------
+    # 4) Ensure both base and head commits/refs are present (fixes "Invalid revision range")
+    #    We fetch the PR head safely (works for forks), and ensure the base commit is available.
+    - name: Fetch base and PR head commits (fix invalid revision range)
+      id: fetch-refs
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        PR_NUMBER="${{ github.event.pull_request.number }}"
+
+        echo "Base SHA: $BASE_SHA"
+        echo "Head SHA: $HEAD_SHA"
+        echo "PR number: $PR_NUMBER"
+
+        # Try to ensure base exists locally
+        if ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+          echo "Base SHA not present locally. Fetching base branch..."
+          git fetch origin "$BASE_SHA":"refs/remotes/origin/base_tmp" || true
+        fi
+
+        # Try to fetch PR head via refs/pull/*/head (works even for forks in many runner setups)
+        if ! git cat-file -e "$HEAD_SHA" 2>/dev/null; then
+          echo "Head SHA not present locally. Trying to fetch refs/pull/$PR_NUMBER/head..."
+          git fetch origin +refs/pull/$PR_NUMBER/head:refs/remotes/pr/$PR_NUMBER || true
+        fi
+
+        # If still not present, attempt to fetch the exact head SHA from origin (best-effort)
+        if ! git cat-file -e "$HEAD_SHA" 2>/dev/null; then
+          echo "Attempting to fetch head SHA explicitly..."
+          git fetch origin "$HEAD_SHA" || true
+        fi
+
+        # Final verification — if either SHA still missing, print available refs for debugging and fail
+        if ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+          echo "::error::Base SHA $BASE_SHA not available after fetch attempts."
+          git show-ref || true
+          exit 1
+        fi
+        if ! git cat-file -e "$HEAD_SHA" 2>/dev/null; then
+          echo "::error::Head SHA $HEAD_SHA not available after fetch attempts."
+          git show-ref || true
+          exit 1
+        fi
+
+        echo "both_shas_available=true" >> $GITHUB_OUTPUT
+
+    # 5) Collect changed Java files between base and head
     - name: Get changed Java files
       id: changed-files
+      shell: bash
       run: |
-        files=$(git diff --name-only --diff-filter=ACMRT \
-          ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} \
-          | grep -E "\.java$" | xargs)
-        echo "all_changed_files=$files" >> $GITHUB_OUTPUT
-        if [ -n "$files" ]; then
+        set -euo pipefail
+        BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+        # Use the SHAs directly (they are guaranteed present by previous step)
+        files=$(git diff --name-only --diff-filter=ACMRT "$BASE_SHA".."$HEAD_SHA" | grep -E "\.java$" || true)
+
+        # Trim whitespace and normalize (xargs will handle multi-line)
+        files_trimmed=$(echo "$files" | xargs -r)
+
+        echo "all_changed_files=$files_trimmed" >> $GITHUB_OUTPUT
+
+        if [ -n "$files_trimmed" ]; then
           echo "any_changed=true" >> $GITHUB_OUTPUT
         else
           echo "any_changed=false" >> $GITHUB_OUTPUT
         fi
 
-    # ---------------------------
-    # 5. Extract features BEFORE changes (base)
-    # ---------------------------
+    # 6) Extract semantic features for BASE (before PR)
     - name: Extract semantic features BEFORE changes (base)
       if: steps.changed-files.outputs.any_changed == 'true'
+      shell: bash
       run: |
-        git checkout ${{ github.event.pull_request.base.sha }}
+        set -euo pipefail
+
+        BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        echo "Checking out base commit $BASE_SHA"
+        git checkout -f "$BASE_SHA"
+
         mkdir -p metrics_output_base
-        # Initialize CSV with header
-        echo "File,Feature1,Feature2,Feature3,..." > metrics_output_base/summary_metrics.csv
-        for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-          echo "Processing $file for base metrics..."
-          bash extract_semantic_features.sh https://github.com/${{ github.repository }} "$file"
-          # Append extracted metrics (skip header from individual files)
-          latest_csv=$(ls -td metrics_output_* | head -n 1)/summary_metrics.csv
-          if [ -f "$latest_csv" ]; then
-            tail -n +2 "$latest_csv" >> metrics_output_base/summary_metrics.csv
-            rm -rf "$(dirname "$latest_csv")"
+        # Write header — replace Feature1,Feature2,... with your real header if known
+        echo "File,Feature1,Feature2,Feature3" > metrics_output_base/summary_metrics.csv
+
+        # iterate safely over files (handles spaces/newlines)
+        IFS=$'\n' read -r -d '' -a files_arr <<< "$(printf "%s\0" ${{ steps.changed-files.outputs.all_changed_files }})" || true
+
+        for file in ${steps.changed-files.outputs.all_changed_files}; do
+          # skip empty
+          if [ -z "$file" ]; then
+            continue
+          fi
+          echo "--- Processing base: $file ---"
+          # run your semantic extraction script which should generate metrics_output/<file>_metrics.csv
+          # we pass repo and file; update script args if needed
+          bash extract_semantic_features.sh "https://github.com/${{ github.repository }}" "$file"
+
+          # pick the most recent metrics_output_* directory and append (skip header)
+          latest_dir=$(ls -td metrics_output_* 2>/dev/null | head -n 1 || true)
+          if [ -n "$latest_dir" ] && [ -f "$latest_dir/summary_metrics.csv" ]; then
+            tail -n +2 "$latest_dir/summary_metrics.csv" >> metrics_output_base/summary_metrics.csv
+            rm -rf "$latest_dir"
           fi
         done
 
-    # ---------------------------
-    # 6. Extract features AFTER changes (head)
-    # ---------------------------
+    # 7) Extract semantic features for HEAD (after PR)
     - name: Extract semantic features AFTER changes (head)
       if: steps.changed-files.outputs.any_changed == 'true'
+      shell: bash
       run: |
-        git checkout ${{ github.event.pull_request.head.sha }}
+        set -euo pipefail
+
+        HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        echo "Checking out head commit $HEAD_SHA"
+        git checkout -f "$HEAD_SHA"
+
         mkdir -p metrics_output_head
-        # Initialize CSV with header
-        echo "File,Feature1,Feature2,Feature3,..." > metrics_output_head/summary_metrics.csv
-        for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-          echo "Processing $file for head metrics..."
-          bash extract_semantic_features.sh https://github.com/${{ github.repository }} "$file"
-          latest_csv=$(ls -td metrics_output_* | head -n 1)/summary_metrics.csv
-          if [ -f "$latest_csv" ]; then
-            tail -n +2 "$latest_csv" >> metrics_output_head/summary_metrics.csv
-            rm -rf "$(dirname "$latest_csv")"
+        echo "File,Feature1,Feature2,Feature3" > metrics_output_head/summary_metrics.csv
+
+        for file in ${steps.changed-files.outputs.all_changed_files}; do
+          if [ -z "$file" ]; then
+            continue
+          fi
+          echo "--- Processing head: $file ---"
+          bash extract_semantic_features.sh "https://github.com/${{ github.repository }}" "$file"
+
+          latest_dir=$(ls -td metrics_output_* 2>/dev/null | head -n 1 || true)
+          if [ -n "$latest_dir" ] && [ -f "$latest_dir/summary_metrics.csv" ]; then
+            tail -n +2 "$latest_dir/summary_metrics.csv" >> metrics_output_head/summary_metrics.csv
+            rm -rf "$latest_dir"
           fi
         done
 
-    # ---------------------------
-    # 7. Debug output
-    # ---------------------------
+    # 8) Debug printout of CSVs
     - name: Debug accumulated metrics
       if: steps.changed-files.outputs.any_changed == 'true'
+      shell: bash
       run: |
         echo "=== Changed files ==="
         echo "${{ steps.changed-files.outputs.all_changed_files }}"
         echo "=== Base metrics CSV ==="
-        cat metrics_output_base/summary_metrics.csv
+        sed -n '1,200p' metrics_output_base/summary_metrics.csv || true
         echo "=== Head metrics CSV ==="
-        cat metrics_output_head/summary_metrics.csv
+        sed -n '1,200p' metrics_output_head/summary_metrics.csv || true
 
-    # ---------------------------
-    # 8. Run semantic prediction & comparison
-    # ---------------------------
+    # 9) Run semantic prediction & produce comparison
     - name: Run semantic prediction and compare
       if: steps.changed-files.outputs.any_changed == 'true'
       id: prediction
+      shell: bash
       run: |
+        set -euo pipefail
         source venv/bin/activate
-        
-        # Predict for base
+
+        # Predict for base (predict_semantic.py must output semantic_predictions.csv)
         python predict_semantic.py metrics_output_base/summary_metrics.csv
         mv semantic_predictions.csv semantic_predictions_base.csv
 
@@ -126,34 +198,37 @@ jobs:
         python predict_semantic.py metrics_output_head/summary_metrics.csv
         mv semantic_predictions.csv semantic_predictions_head.csv
 
-        # Compare base vs head predictions
-        python - << 'EOF'
+        # Merge side-by-side using pandas to ensure columns align by File
+        python - <<'PY'
 import pandas as pd
+base = pd.read_csv("semantic_predictions_base.csv")
+head = pd.read_csv("semantic_predictions_head.csv")
 
-base_df = pd.read_csv("semantic_predictions_base.csv")
-head_df = pd.read_csv("semantic_predictions_head.csv")
+# Ensure 'File' column exists and use it as key
+if "File" not in base.columns or "File" not in head.columns:
+    raise SystemExit("Expected 'File' column in prediction outputs")
 
-comparison_df = base_df.copy()
-for col in head_df.columns:
-    if col != "File":
-        comparison_df[f"{col}_after"] = head_df[col]
+merged = base.merge(head, on="File", how="outer", suffixes=('_before','_after'))
+# Optional: reorder columns to show File first
+cols = ["File"] + [c for c in merged.columns if c != "File"]
+merged = merged[cols]
+merged.to_csv("semantic_predictions_comparison.csv", index=False)
+print(merged.to_string(index=False))
+PY
 
-comparison_df.to_csv("semantic_predictions_comparison.csv", index=False)
-print(comparison_df)
-EOF
-
+        # Write comment output to GITHUB_OUTPUT so the next step can read it
         {
           echo "comment<<EOF"
           echo "### 📊 Semantic Defect Prediction Comparison"
           cat semantic_predictions_comparison.csv
           echo ""
-          echo "> Each row shows predictions before and after changes. Higher defect probability means higher risk."
+          echo "> Each row shows predictions before and after changes. Higher defect probability indicates higher risk."
+          echo ""
+          echo "> Note: numeric outputs depend on your `predict_semantic.py` format. Ensure it emits a 'File' column."
           echo "EOF"
-        } >> $GITHUB_OUTPUT
+        }
 
-    # ---------------------------
-    # 9. Comment on PR
-    # ---------------------------
+    # 10) Post the comment on the PR
     - name: Comment on PR
       if: steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v7
