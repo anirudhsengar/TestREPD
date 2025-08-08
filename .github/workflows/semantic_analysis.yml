@@ -1,5 +1,4 @@
-
-name: Semantic Semantic Bug Prediction
+name: Semantic Bug Prediction
 
 on:
   pull_request_target:
@@ -13,27 +12,42 @@ permissions:
 jobs:
   predict:
     runs-on: ubuntu-latest
+
     steps:
+    # ---------------------------
+    # 1. Checkout repository
+    # ---------------------------
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
+    # ---------------------------
+    # 2. Set up Python
+    # ---------------------------
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
+    # ---------------------------
+    # 3. Install dependencies
+    # ---------------------------
     - name: Install dependencies
       run: |
         python -m venv venv
         source venv/bin/activate
         pip install javalang pandas
 
+    # ---------------------------
+    # 4. Detect changed Java files
+    # ---------------------------
     - name: Get changed Java files
       id: changed-files
       run: |
-        files=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -E "\.java$" | xargs)
+        files=$(git diff --name-only --diff-filter=ACMRT \
+          ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} \
+          | grep -E "\.java$" | xargs)
         echo "all_changed_files=$files" >> $GITHUB_OUTPUT
         if [ -n "$files" ]; then
           echo "any_changed=true" >> $GITHUB_OUTPUT
@@ -41,50 +55,105 @@ jobs:
           echo "any_changed=false" >> $GITHUB_OUTPUT
         fi
 
+    # ---------------------------
+    # 5. Extract features BEFORE changes (base)
+    # ---------------------------
     - name: Extract semantic features BEFORE changes (base)
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         git checkout ${{ github.event.pull_request.base.sha }}
         mkdir -p metrics_output_base
-        # Run extraction for each changed file
+        # Initialize CSV with header
+        echo "File,Feature1,Feature2,Feature3,..." > metrics_output_base/summary_metrics.csv
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           echo "Processing $file for base metrics..."
-          bash extract_semantic_features.sh https://github.com/${{ github.repository }}
-          # Move output CSV to base dir
-          mv metrics_output/*_metrics.csv metrics_output_base/summary_metrics.csv
+          bash extract_semantic_features.sh https://github.com/${{ github.repository }} "$file"
+          # Append extracted metrics (skip header from individual files)
+          latest_csv=$(ls -td metrics_output_* | head -n 1)/summary_metrics.csv
+          if [ -f "$latest_csv" ]; then
+            tail -n +2 "$latest_csv" >> metrics_output_base/summary_metrics.csv
+            rm -rf "$(dirname "$latest_csv")"
+          fi
         done
 
+    # ---------------------------
+    # 6. Extract features AFTER changes (head)
+    # ---------------------------
     - name: Extract semantic features AFTER changes (head)
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         git checkout ${{ github.event.pull_request.head.sha }}
         mkdir -p metrics_output_head
+        # Initialize CSV with header
+        echo "File,Feature1,Feature2,Feature3,..." > metrics_output_head/summary_metrics.csv
         for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
           echo "Processing $file for head metrics..."
-          bash extract_semantic_features.sh https://github.com/${{ github.repository }}
-          mv metrics_output/*_metrics.csv metrics_output_head/summary_metrics.csv
+          bash extract_semantic_features.sh https://github.com/${{ github.repository }} "$file"
+          latest_csv=$(ls -td metrics_output_* | head -n 1)/summary_metrics.csv
+          if [ -f "$latest_csv" ]; then
+            tail -n +2 "$latest_csv" >> metrics_output_head/summary_metrics.csv
+            rm -rf "$(dirname "$latest_csv")"
+          fi
         done
 
+    # ---------------------------
+    # 7. Debug output
+    # ---------------------------
+    - name: Debug accumulated metrics
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "=== Changed files ==="
+        echo "${{ steps.changed-files.outputs.all_changed_files }}"
+        echo "=== Base metrics CSV ==="
+        cat metrics_output_base/summary_metrics.csv
+        echo "=== Head metrics CSV ==="
+        cat metrics_output_head/summary_metrics.csv
+
+    # ---------------------------
+    # 8. Run semantic prediction & comparison
+    # ---------------------------
     - name: Run semantic prediction and compare
       if: steps.changed-files.outputs.any_changed == 'true'
       id: prediction
       run: |
         source venv/bin/activate
+        
         # Predict for base
         python predict_semantic.py metrics_output_base/summary_metrics.csv
         mv semantic_predictions.csv semantic_predictions_base.csv
+
         # Predict for head
         python predict_semantic.py metrics_output_head/summary_metrics.csv
         mv semantic_predictions.csv semantic_predictions_head.csv
-        # Compare and format results
-        echo "Comparing predictions..."
-        paste -d',' semantic_predictions_base.csv semantic_predictions_head.csv > semantic_predictions_comparison.csv
-        echo "comment<<EOF" > $GITHUB_OUTPUT
-        echo "### Semantic Defect Prediction Comparison" >> $GITHUB_OUTPUT
-        cat semantic_predictions_comparison.csv >> $GITHUB_OUTPUT
-        echo "\n\n> Each row shows base and head predictions for each class. Higher defect probability means higher risk." >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
 
+        # Compare base vs head predictions
+        python - << 'EOF'
+import pandas as pd
+
+base_df = pd.read_csv("semantic_predictions_base.csv")
+head_df = pd.read_csv("semantic_predictions_head.csv")
+
+comparison_df = base_df.copy()
+for col in head_df.columns:
+    if col != "File":
+        comparison_df[f"{col}_after"] = head_df[col]
+
+comparison_df.to_csv("semantic_predictions_comparison.csv", index=False)
+print(comparison_df)
+EOF
+
+        {
+          echo "comment<<EOF"
+          echo "### 📊 Semantic Defect Prediction Comparison"
+          cat semantic_predictions_comparison.csv
+          echo ""
+          echo "> Each row shows predictions before and after changes. Higher defect probability means higher risk."
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+
+    # ---------------------------
+    # 9. Comment on PR
+    # ---------------------------
     - name: Comment on PR
       if: steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v7
