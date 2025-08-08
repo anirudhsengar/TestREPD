@@ -1,0 +1,101 @@
+name: Semantic Bug Prediction
+
+on:
+  pull_request_target:
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install pandas joblib tensorflow
+        sudo apt-get update
+        sudo apt-get install -y cloc
+
+    - name: Download trained model
+      run: |
+        echo "Downloading trained model..."
+        mkdir -p trained_model
+        # Replace with your actual model download links or skip if present
+        # curl -L -o trained_model/model.pkl "<MODEL_URL>"
+        # curl -L -o trained_model/preprocessor.pkl "<PREPROCESSOR_URL>"
+
+    - name: Get changed Java files
+      id: changed-files
+      run: |
+        files=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -E "\.java$" | xargs)
+        echo "all_changed_files=$files" >> $GITHUB_OUTPUT
+        if [ -n "$files" ]; then
+          echo "any_changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "any_changed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Extract semantic features BEFORE changes (base)
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        git checkout ${{ github.event.pull_request.base.sha }}
+        mkdir -p semantic_metrics_base
+        echo "File,<your_feature_columns_here>" > semantic_metrics_base/summary_metrics.csv
+        for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          echo "Processing $file for base metrics..."
+          ./extract_semantic_features "$file" > semantic_metrics_base/metrics_${file//\//_}.csv
+          tail -n +2 semantic_metrics_base/metrics_${file//\//_}.csv >> semantic_metrics_base/summary_metrics.csv
+        done
+
+    - name: Extract semantic features AFTER changes (head)
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        git checkout ${{ github.event.pull_request.head.sha }}
+        mkdir -p semantic_metrics_head
+        echo "File,<your_feature_columns_here>" > semantic_metrics_head/summary_metrics.csv
+        for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          echo "Processing $file for head metrics..."
+          ./extract_semantic_features "$file" > semantic_metrics_head/metrics_${file//\//_}.csv
+          tail -n +2 semantic_metrics_head/metrics_${file//\//_}.csv >> semantic_metrics_head/summary_metrics.csv
+        done
+
+    - name: Run prediction
+      if: steps.changed-files.outputs.any_changed == 'true'
+      id: prediction
+      run: |
+        echo "Running predictions with trained model..."
+        python predict.py semantic_metrics_base/summary_metrics.csv semantic_metrics_head/summary_metrics.csv > prediction_output.txt
+        echo "comment<<EOF" >> $GITHUB_OUTPUT
+        cat prediction_output.txt >> $GITHUB_OUTPUT
+        echo "\n### 📋 Interpretation Note:" >> $GITHUB_OUTPUT
+        echo "> The values shown are model outputs for semantic features. Higher values indicate a stronger match for the predicted category." >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Comment on PR
+      if: steps.changed-files.outputs.any_changed == 'true'
+      uses: actions/github-script@v6
+      env:
+        COMMENT_BODY: "${{ steps.prediction.outputs.comment }}"
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.payload.pull_request.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: process.env.COMMENT_BODY
+          })
